@@ -424,6 +424,30 @@ deps_/home/pi/workspace/ECE4220/Lab1/Lab1_part2.o := \
     $(wildcard include/config/have/mod/arch/specific.h) \
     $(wildcard include/config/modules/use/elf/rel.h) \
     $(wildcard include/config/modules/use/elf/rela.h) \
+  include/linux/io.h \
+    $(wildcard include/config/have/arch/huge/vmap.h) \
+    $(wildcard include/config/has/ioport/map.h) \
+  arch/arm/include/asm/io.h \
+    $(wildcard include/config/pci.h) \
+    $(wildcard include/config/need/mach/io/h.h) \
+    $(wildcard include/config/pcmcia/soc/common.h) \
+    $(wildcard include/config/isa.h) \
+    $(wildcard include/config/pccard.h) \
+  include/linux/blk_types.h \
+    $(wildcard include/config/block.h) \
+    $(wildcard include/config/blk/cgroup.h) \
+    $(wildcard include/config/blk/dev/integrity.h) \
+  include/asm-generic/pci_iomap.h \
+    $(wildcard include/config/no/generic/pci/ioport/map.h) \
+    $(wildcard include/config/generic/pci/iomap.h) \
+  include/xen/xen.h \
+    $(wildcard include/config/xen.h) \
+    $(wildcard include/config/xen/dom0.h) \
+    $(wildcard include/config/xen/pvh.h) \
+  arch/arm/mach-bcm2709/include/mach/io.h \
+  include/asm-generic/io.h \
+    $(wildcard include/config/generic/iomap.h) \
+  include/linux/vmalloc.h \
 
 /home/pi/workspace/ECE4220/Lab1/Lab1_part2.o: $(deps_/home/pi/workspace/ECE4220/Lab1/Lab1_part2.o)
 
