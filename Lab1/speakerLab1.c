@@ -28,17 +28,17 @@ int main(void) {
 	pinMode(BUTTON1, INPUT);
 	pinMode(BUTTON2, INPUT);
 	pinMode(BUTTON3, INPUT);
-	pinMode(BUTTON4, INPUT);
+	pinMode(BUTTON4, INPUT);	//set button pinmodes
 	pinMode(BUTTON5, INPUT);
 
-	pinMode(SPEAKER, OUTPUT);
+	pinMode(SPEAKER, OUTPUT);	//speaker mode
 
 
-	printf("Please enter a number 1 - 5: ");
+	printf("Please enter a number 1 - 5: ");		//user entered number
 	int num;
 	scanf("%d", &num);
 	while(num < 1 || num > 5) {
-		printf("Invalid option, please enter 1 -5: ");
+		printf("Invalid option, please enter 1 -5: ");	//make sure # is 1-5
 		scanf("%d", &num);
 	}
 	while(1) {
@@ -66,7 +66,7 @@ int main(void) {
 				if(digitalRead(BUTTON3)) {
 					digitalWrite(SPEAKER, HIGH);
 					usleep(400);
-					digitalWrite(SPEAKER, LOW);
+					digitalWrite(SPEAKER, LOW);		//if user presses equivalent button as number, speaker activates
 					usleep(400);		
 				} else {
 					break;
@@ -93,7 +93,7 @@ int main(void) {
 				}
 
 		}
-
+		sleep(1);	//small break in loop
 
 
 	}
