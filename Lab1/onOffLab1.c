@@ -22,7 +22,6 @@ int main(void) {
 
 	pinMode(LED1, OUTPUT);		//LEDs set to output
 	pinMode(LED2, OUTPUT);
-	char input;
 	while(1) {
 		
 		digitalWrite(LED1, HIGH);	//LED1 on
