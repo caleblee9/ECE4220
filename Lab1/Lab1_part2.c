@@ -15,7 +15,7 @@ MODULE_LICENSE("GPL");	//mod license
 
 
 int init_module(void) {
-	printk("MODULE INSTALLED");  //dmseg print
+	printk("MODULE INSTALLED\n");  //dmseg print
 	
 	unsigned long *GPFSEL0 = (unsigned long *) ioremap(0x3F200000, 4096); //remap GPFSEL0 to address
 
@@ -32,7 +32,7 @@ int init_module(void) {
 	return 0;
 }
 void cleanup_module(void) {
-	printk("MODULE REMOVED");
+	printk("MODULE REMOVED\n");
 	unsigned long *GPFSEL0 = (unsigned long *) ioremap(0x3F200028, 4096);		//address to GPFCLR0
 	*GPFSEL0 = *GPFSEL0 | 0x003C;		//turn LEDs off with bit mask
 }

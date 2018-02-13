@@ -93,7 +93,6 @@ int main(void) {
 				}
 
 		}
-		sleep(1);	//small break in loop
 
 
 	}
