@@ -15,7 +15,7 @@ void *storeLine(void*);	//takes the line from the buffer and stores in the strin
 
 typedef struct readThread {
 	FILE *fp;		//file to grab line from
-	char *line;
+	char *name;
 	char *buffer;		//where to store line
 	int start;
 	int period;
@@ -30,30 +30,31 @@ int main(int argc, char *argv[]) {
 
 
 	pthread_t thr1, thr2, thr3;
-	char *buffer;
+	char *buffer = malloc(sizeof(char) * 50);
 	char *array[20];
 
 
 	RT t1;
 	t1.fp = fp1;
 	t1.buffer = buffer;
-	t1.period = 100000;
+	t1.name = "first.txt";
+	t1.period = 1000000;
 	t1.start = 100;
 
 
 	RT t2;
 	t2.fp = fp1;
 	t2.buffer = buffer;
-	t2.period = 100000;
-	t2.start = 2000;
+	t2.name = "second.txt";
+	t2.period = 1000000;
+	t2.start = 102;
 
 
 	RB rb1;
 	rb1.buffer = buffer;
 	rb1.array = array;
-
-
-	pthread_create(&thr1, NULL, (void *)&readLine, &t1);	
+	
+	pthread_create(&thr1, NULL, (void *)&readLine, &t1);
 	pthread_create(&thr2, NULL, (void *)&readLine, &t2);
 	pthread_create(&thr3, NULL, (void *)&storeLine,&rb1);
 	pthread_join(thr1, NULL);
@@ -62,20 +63,21 @@ int main(int argc, char *argv[]) {
 
 	int i;
 	for(i = 0; i < 20; i++) {
-		printf("%s\n", array[i]);
+		printf("%s", array[i]);
 	}
-	
+
 	return 0;
 }
 void *readLine(void* t1){
 	RT *thr1 = (RT *)t1;
+	if((thr1->fp = fopen(thr1->name, "r")) == NULL) {
+		printf("Cannot open a file specified, please check to make sure file exists\n");
+		return 0;
+	} 
+
 	struct sched_param param;	
 	param.sched_priority = HP;
 	sched_setscheduler(0, SCHED_FIFO, &param);
-	if((thr1->fp = fopen("first.txt", "r")) == NULL) {
-		printf("Cannot open first file specified, please check to make sure file exists\n");
-		return 0;
-	} 
 	int timer_1 = timerfd_create(CLOCK_MONOTONIC, 0);
 	struct itimerspec itval;
 	itval.it_interval.tv_sec = 0;
@@ -85,11 +87,10 @@ void *readLine(void* t1){
 	timerfd_settime(timer_1, 0, &itval, NULL);
 	uint64_t num_periods = 0;
 	while(1) {
-		if(fscanf(thr1->fp, "%s", thr1->line) == EOF) {
+		if(fgets(thr1->buffer, 50, thr1->fp) == 0) {
 			fclose(thr1->fp);
 			return;
 		}
-		strcpy(thr1->buffer, thr1->line);
 		read(timer_1, &num_periods, sizeof(num_periods));
 		if(num_periods > 1) {
 			fclose(thr1->fp);
@@ -107,15 +108,15 @@ void *storeLine(void* rb){
 	int timer_1 = timerfd_create(CLOCK_MONOTONIC, 0);
 	struct itimerspec itval;
 	itval.it_interval.tv_sec = 0;
-	itval.it_interval.tv_nsec = 50000;
+	itval.it_interval.tv_nsec = 500000;
 	itval.it_value.tv_sec = 0;
-	itval.it_value.tv_nsec = 1000;
+	itval.it_value.tv_nsec = 101;
 	timerfd_settime(timer_1, 0, &itval, NULL);
 	uint64_t num_periods = 0;
 	int i = 0;
 	while(1) {
-		if(rb1->buffer != "") {
-			strcat(rb1->array[i], rb1->buffer);
+		if(rb1->buffer != "" && i < 20) {
+			rb1->array[i] = rb1->buffer;
 			i++;
 		} else {
 			return;
