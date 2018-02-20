@@ -73,7 +73,7 @@ int main(int argc, char *argv[]) {
 	system("clear");
 	int i;
 	for(i = 0; i < 19; i++) {
-		if(strcmp(rb1.array[i + 1],rb1.array[i]) == 0) {
+		if(strcmp(rb1.array[i + 1],rb1.array[i]) == 0 || rb1.array[i] == "") {
 			continue;
 		} 
 		printf("%s", rb1.array[i]);
