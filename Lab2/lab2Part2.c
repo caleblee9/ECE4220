@@ -45,16 +45,16 @@ int main(int argc, char *argv[]) {
 
 	RT t1;
 	t1.fp = fp1;
-	t1.period = 600000000;
-	t1.start = 50000000;
+	t1.period = 800000000;
+	t1.start = 200000000;
 	t1.buffer = buffer;
 	t1.num = 1;
 
 
 	RT t2;
 	t2.fp = fp2;
-	t2.period = 600000000;
-	t2.start = 150000000;
+	t2.period = 800000000;
+	t2.start = 600000000;
 	t2.buffer = buffer;
 	t2.num = 2;
 
@@ -91,7 +91,7 @@ void *readLine(void* t1){
 	sched_setscheduler(0, SCHED_FIFO, &param);
 
 
-	int timer_1 = timerfd_create(CLOCK_MONOTONIC, 0);
+	int timer_fd = timerfd_create(CLOCK_MONOTONIC, 0);
 
 	struct itimerspec itval;
 		itval.it_interval.tv_sec = 0;
@@ -99,10 +99,10 @@ void *readLine(void* t1){
 		itval.it_value.tv_sec = 0;
 		itval.it_value.tv_nsec = thr1->start;
 
-		timerfd_settime(timer_1, 0, &itval, NULL);
+		timerfd_settime(timer_fd, 0, &itval, NULL);
 	for(i = 0; i < 10; i++) {
 		fgets(thr1->buffer, 50, thr1->fp);
-		read(timer_1, &num_periods, sizeof(num_periods));
+		read(timer_fd, &num_periods, sizeof(num_periods));
 		if(num_periods > 1) {
 			puts("MISSED WINDOW\n");
 			exit(1);
@@ -116,16 +116,16 @@ void *storeLine(void* rb){
 	struct sched_param param;	
 	param.sched_priority = HP;
 	sched_setscheduler(0, SCHED_FIFO, &param);
-	int timer_1 = timerfd_create(CLOCK_MONOTONIC, 0);
+	int timer_fd = timerfd_create(CLOCK_MONOTONIC, 0);
 	struct itimerspec itval;
 	itval.it_interval.tv_sec = 0;
-	itval.it_interval.tv_nsec = 300000000;
+	itval.it_interval.tv_nsec = 400000000;
 	itval.it_value.tv_sec = 0;
-	itval.it_value.tv_nsec = 100000000;
-	timerfd_settime(timer_1, 0, &itval, NULL);
+	itval.it_value.tv_nsec = 400000000;
+	timerfd_settime(timer_fd, 0, &itval, NULL);
 	for(i = 0; i < 20; i++){
 		strcpy(rb1->array[i], rb1->buffer);
-		read(timer_1, &num_periods, sizeof(num_periods));
+		read(timer_fd, &num_periods, sizeof(num_periods));
 		if(num_periods > 1) {
 			puts("MISSED WINDOW\n");
 			exit(1);
