@@ -45,16 +45,16 @@ int main(int argc, char *argv[]) {
 
 	RT t1;
 	t1.fp = fp1;
-	t1.period = 800000000;
-	t1.start = 200000000;
+	t1.period = 200000000;
+	t1.start = 50000000;
 	t1.buffer = buffer;
 	t1.num = 1;
 
 
 	RT t2;
 	t2.fp = fp2;
-	t2.period = 800000000;
-	t2.start = 600000000;
+	t2.period = 200000000;
+	t2.start = 150000000;
 	t2.buffer = buffer;
 	t2.num = 2;
 
@@ -70,13 +70,15 @@ int main(int argc, char *argv[]) {
 	pthread_join(thr2, NULL);
 	pthread_join(thr3, NULL);
 
-//	system("clear");
+	system("clear");
 	int i;
-	for(i = 0; i < 20; i++) {
+	for(i = 0; i < 19; i++) {
+		if(strcmp(rb1.array[i + 1],rb1.array[i]) == 0) {
+			continue;
+		} 
 		printf("%s", rb1.array[i]);
 	}
 
-	printf("\n");
 	free(buffer);
 	fclose(fp1);
 	fclose(fp2);
@@ -100,14 +102,16 @@ void *readLine(void* t1){
 		itval.it_value.tv_nsec = thr1->start;
 
 		timerfd_settime(timer_fd, 0, &itval, NULL);
-	for(i = 0; i < 10; i++) {
-		fgets(thr1->buffer, 50, thr1->fp);
+
+		read(timer_fd, &num_periods, sizeof(num_periods));
+	while(fgets(thr1->buffer, 50, thr1->fp)) {
 		read(timer_fd, &num_periods, sizeof(num_periods));
 		if(num_periods > 1) {
 			puts("MISSED WINDOW\n");
 			exit(1);
 		}	
-	}
+	}	
+	pthread_exit(0);
 }
 void *storeLine(void* rb){
 	RB *rb1 = (RB *) rb;
@@ -119,11 +123,12 @@ void *storeLine(void* rb){
 	int timer_fd = timerfd_create(CLOCK_MONOTONIC, 0);
 	struct itimerspec itval;
 	itval.it_interval.tv_sec = 0;
-	itval.it_interval.tv_nsec = 400000000;
+	itval.it_interval.tv_nsec = 100000000;
 	itval.it_value.tv_sec = 0;
-	itval.it_value.tv_nsec = 400000000;
-	timerfd_settime(timer_fd, 0, &itval, NULL);
-	for(i = 0; i < 20; i++){
+	itval.it_value.tv_nsec = 100000000;
+	timerfd_settime(timer_fd, 0, &itval, NULL);	
+	read(timer_fd, &num_periods, sizeof(num_periods));
+	for(i = 0; i < 16; i++){
 		strcpy(rb1->array[i], rb1->buffer);
 		read(timer_fd, &num_periods, sizeof(num_periods));
 		if(num_periods > 1) {
@@ -132,4 +137,5 @@ void *storeLine(void* rb){
 		}
 	
 	}
+	pthread_exit(0);
 }
