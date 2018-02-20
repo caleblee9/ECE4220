@@ -1,9 +1,15 @@
 Your head is humming and it wont go
 The pipers calling you to join him,
 And did you know
+<<<<<<< HEAD
 
+=======
+>>>>>>> c53b02173b14210014bbe0f3d1289571acc82629
 Our shadows taller than our soul.
 Who shines white light and wants to show
 And if you listen very hard
 When all are one and one is all
+<<<<<<< HEAD
 
+=======
+>>>>>>> c53b02173b14210014bbe0f3d1289571acc82629

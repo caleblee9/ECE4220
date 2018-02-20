@@ -80,7 +80,7 @@ int main(int argc, char *argv[]) {
 	thr1.counter = malloc(sizeof(int));
 	(*thr1.counter) = 0;
 	clock_t begin = clock();		//start clock
-	pthread_create(&thread1, NULL, (void *)&entireSearch, &thr1);//run the search of entire matrix
+	pthread_create(&thread1, null, (void *)&entiresearch, &thr1);//run the search of entire matrix
 	pthread_join(thread1, NULL);			//wait until thread1 is complete
 	clock_t end = clock();				//end timer
 	double time_spent = (double)(end - begin);	//get total time
