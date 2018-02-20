@@ -92,7 +92,7 @@ int main(int argc, char *argv[]) {
 	system("clear");		
 	printf("----Entire Matrix----\n");
 	printf("Times found: %d\n", *thr1.counter);	//print results
-	printf("Time taken: %lf ms\n", time_spent);
+	printf("Time taken: %lf ms\n", 1000 * time_spent);
 	free(thr1.counter);
 /*
 --------------------------------------------------------------------
@@ -124,7 +124,7 @@ int main(int argc, char *argv[]) {
 
 	printf("\n\n----Each Row----\n");
 	printf("Times found: %d\n", counter);		//print results
-	printf("Time taken: %lf ms\n", time_spent);
+	printf("Time taken: %lf ms\n", 1000 * time_spent);
 	free(row);
 	
 
@@ -147,7 +147,7 @@ int main(int argc, char *argv[]) {
 		h = k;
 		for(j = 0; j < rows; j++) {
 			*(col + j) = *(array + h);
-			h = h + rows;	//each of the columns holds the position in the array incrememnted by the number of rows
+			h = h + cols;	//each of the columns holds the position in the array incrememnted by the number of rows
 		}				
 		thr3.col = col;
 		pthread_create(&thread3[i], NULL, (void *)&colSearch, &thr3);	//for each column, create a thread
@@ -160,7 +160,7 @@ int main(int argc, char *argv[]) {
 
 	printf("\n\n----Each Column----\n");
 	printf("Times found: %d\n", counter);			//print stats
-	printf("Time taken: %lf ms\n\n\n", time_spent);
+	printf("Time taken: %lf ms\n\n\n", 1000 * time_spent);
 	free(col);
 /*
 ------------------------------------------------------------------
@@ -184,7 +184,7 @@ int main(int argc, char *argv[]) {
 
 	printf("\n\n----Each Element----\n");
 	printf("Times found: %d\n", counter);		//print stats
-	printf("Time taken: %lf ms\n\n\n", time_spent);
+	printf("Time taken: %lf ms\n\n\n", 1000 * time_spent);
 
 
 	free(array);
