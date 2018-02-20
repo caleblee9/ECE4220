@@ -1,7 +1,7 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <time.h>
-
+#include <pthread.h>
 
 typedef struct t1 {
 	int val;
@@ -45,6 +45,10 @@ void *elemCheck(void *);	//checks every element
 
 
 int main(int argc, char *argv[]) {
+	if(argc != 3) {
+		printf("Insufficient amount of arguments\n");
+		return 0;
+	}
 	pthread_t thread1;		//create the thread
 	int num = atoi(argv[2]);	//number to check for
 	
@@ -80,15 +84,15 @@ int main(int argc, char *argv[]) {
 	thr1.counter = malloc(sizeof(int));
 	(*thr1.counter) = 0;
 	clock_t begin = clock();		//start clock
-	pthread_create(&thread1, null, (void *)&entiresearch, &thr1);//run the search of entire matrix
+	pthread_create(&thread1, NULL, (void *)&entireSearch, &thr1);//run the search of entire matrix
 	pthread_join(thread1, NULL);			//wait until thread1 is complete
 	clock_t end = clock();				//end timer
-	double time_spent = (double)(end - begin);	//get total time
+	double time_spent = (double)(end - begin) / CLOCKS_PER_SEC;	//get total time
 
 	system("clear");		
 	printf("----Entire Matrix----\n");
 	printf("Times found: %d\n", *thr1.counter);	//print results
-	printf("Time taken: %.2lf ms\n", time_spent);
+	printf("Time taken: %lf ms\n", time_spent);
 	free(thr1.counter);
 /*
 --------------------------------------------------------------------
@@ -115,12 +119,12 @@ int main(int argc, char *argv[]) {
 		pthread_join(thread2[i], NULL);		
 	}
 	end = clock();
-	time_spent = (double)(end - begin);
+	time_spent = (double)(end - begin) / CLOCKS_PER_SEC;
 
 
 	printf("\n\n----Each Row----\n");
 	printf("Times found: %d\n", counter);		//print results
-	printf("Time taken: %.2lf ms\n", time_spent);
+	printf("Time taken: %lf ms\n", time_spent);
 	free(row);
 	
 
@@ -151,13 +155,13 @@ int main(int argc, char *argv[]) {
 		k++;	//which column we're on
 	}
 	end = clock();
-	time_spent = (double)(end - begin);
+	time_spent = (double)(end - begin) / CLOCKS_PER_SEC;
 
 
 	printf("\n\n----Each Column----\n");
 	printf("Times found: %d\n", counter);			//print stats
-	printf("Time taken: %.2lf ms\n\n\n", time_spent);
-	free(row);
+	printf("Time taken: %lf ms\n\n\n", time_spent);
+	free(col);
 /*
 ------------------------------------------------------------------
 -------------------------EACH ELEMENT-----------------------------
@@ -166,7 +170,6 @@ int main(int argc, char *argv[]) {
 	pthread_t thread4[size];
 	T4 thr4;
 	thr4.val = num;
-	thr1.fp = fp;
 	counter = 0;
 	thr4.counter = &counter;
 	begin = clock();
@@ -176,12 +179,12 @@ int main(int argc, char *argv[]) {
 		pthread_join(thread4[i], NULL);	
 	}
 	end = clock();
-	time_spent = (double)(end - begin);
+	time_spent = (double)(end - begin) / CLOCKS_PER_SEC;
 
 
 	printf("\n\n----Each Element----\n");
 	printf("Times found: %d\n", counter);		//print stats
-	printf("Time taken: %.2lf ms\n\n\n", time_spent);
+	printf("Time taken: %lf ms\n\n\n", time_spent);
 
 
 	free(array);
