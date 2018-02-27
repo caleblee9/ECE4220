@@ -23,12 +23,21 @@ void *trafficLight(void *);
 int main(void) {
 
 	wiringPiSetup();
+	clear_button();
+
 
 	pinMode(RED, OUTPUT);
 	pinMode(YELLOW, OUTPUT);	//pin MODEs
 	pinMode(GREEN, OUTPUT);
+	pinMode(21, OUTPUT);
+
 
 	pinMode(27, INPUT);
+	
+	digitalWrite(GREEN, LOW);
+	digitalWrite(YELLOW, LOW);
+	digitalWrite(RED, LOW);		//turn LEDs off
+	digitalWrite(21, LOW);
 
 	pthread_t thr1;
 	pthread_create(&thr1, NULL, trafficLight, NULL);	//create thread, join thread
