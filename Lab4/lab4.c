@@ -10,7 +10,7 @@
 #include <stdint.h>
 #include <fcntl.h>
 #include <sys/types.h>
-
+#include <time.h>
 
 #define BTN1 27
 
@@ -26,7 +26,6 @@ typedef struct data {
 unsigned char val;
 struct timeval tvGPS;	//for time stamps
 struct timeval tvRT;
-sem_t mutex;		//semaphore
 
 void *getData(void *);
 void *rt_Event(void *);
@@ -34,6 +33,7 @@ void *dynThread(void *);
 
 
 int main() {
+	clear_button();
 	int N_pipe2[2];
 	if(pipe(N_pipe2) < 0) {
 		printf("N_pipe2 creation error\n");
@@ -45,9 +45,8 @@ int main() {
 		exit(-1);
 	}
 	wiringPiSetup();	//setup Wiring PI
-	sem_init(&mutex, 0 , 1);	//initialize semaphore
 	pinMode(BTN1, INPUT); //set PinMode for the button
-
+	pullUpDnControl(BTN1, PUD_DOWN);
 
 	if (a != 0){
 		int N_pipe1;	//named pipe
@@ -65,7 +64,8 @@ int main() {
 				printf("N_pipe1 pipe read error\n");
 				return 0;
 			}
-			gettimeofday(&tvGPS, NULL);	
+			gettimeofday(&tvGPS, NULL);
+			usleep(250000);
 		}
 		pthread_join(thread0, NULL);
 	} else {
@@ -78,7 +78,6 @@ int main() {
 void *getData(void * ptr) {
 	int *N_pipe2 = (int *) ptr;
 	while(1) {
-		usleep(250000);
 		pthread_t dyn;
 		Data five;
 		int b;
@@ -95,7 +94,7 @@ void *getData(void * ptr) {
 			if(b == 0) {
 				pthread_create(&dyn, NULL, dynThread, &five);
 			}		
-		}	
+		}
 	}
 	pthread_exit(0);
 }
@@ -115,29 +114,33 @@ void *rt_Event(void * ptr) {
 		while(1){
 			read(timer_fd, &num_periods, sizeof(num_periods));
 			if(check_button()) {
+				printf("Button Pressed\n");
 				gettimeofday(&tvRT, NULL);
 				if(write(N_pipe2[1], &tvRT, sizeof(tvRT)) != sizeof(tvRT)) {
 					printf("Pipe time stamp write error\n");
 					exit(-1);
 				}
+				clear_button();
 			}
-			clear_button();
 			if(num_periods > 1) {
 				puts("MISSED WINDOWN\n");
 				exit(1);
-			}		
+			}
+			usleep(10000);		
 		}
 		pthread_exit(0);		
 }
 void *dynThread(void * ptr) {
 	Data *five = (Data *) ptr;
 	while(1) {
-		if(val != read(N_pipe1, &val, sizeof(val))) {
+		if(val != five->prevval) {
 			five->nextval = val;
 			gettimeofday(five->tvNext, NULL);
 			break;	
 		}
 	}
-	
-	
+	double slope = (double)(five->nextval - five->prevval) / (double) (five->tvNext.tv_usec - five->tvPrev.tv_usec) ;
+	double est = slope * (tvRT.tv_usec - five->tvPrev.tv_usec) + five->prevval;
+	printf("Estimated Value: %.2lf\n", est);
+	pthread_exit(0);	
 }
