@@ -23,6 +23,10 @@ typedef struct data {
 	struct timeval tvNext;
 	
 } Data;
+typedef struct rtData {
+	struct timeval time;
+	unsigned char prev;
+} rtData;
 unsigned char val;
 struct timeval tvGPS;	//for time stamps
 struct timeval tvRT;
@@ -81,9 +85,8 @@ void *getData(void * ptr) {
 		pthread_t dyn;
 		Data five;
 		int b;
-		five.prevval = val;
-		gettimeofday(&five.tvPrev, NULL);
-		if(read(N_pipe2[0], &five.tvRT, sizeof(tvRT)) < 0) {
+		rtData set;
+		if(read(N_pipe2[0], &set, sizeof(tvRT)) < 0) {
 				printf("N_pipe2 read error\n");
 				exit(-1);
 		} else {
@@ -92,6 +95,8 @@ void *getData(void * ptr) {
 				exit(-1);
 			}
 			if(b == 0) {
+				five.tvRT = set.time;
+				five.prevval = set.prev;	
 				pthread_create(&dyn, NULL, dynThread, &five);
 			}		
 		}
@@ -102,7 +107,7 @@ void *rt_Event(void * ptr) {
 	int *N_pipe2 = (int *) ptr;
 	uint64_t num_periods = 0;
 	int timer_fd = timerfd_create(CLOCK_MONOTONIC, 0);
-
+	rtData set;
 	struct itimerspec itval;
 		itval.it_interval.tv_sec = 0;
 		itval.it_interval.tv_nsec = 75000000;
@@ -115,8 +120,9 @@ void *rt_Event(void * ptr) {
 			read(timer_fd, &num_periods, sizeof(num_periods));
 			if(check_button()) {
 				printf("Button Pressed\n");
-				gettimeofday(&tvRT, NULL);
-				if(write(N_pipe2[1], &tvRT, sizeof(tvRT)) != sizeof(tvRT)) {
+				gettimeofday(&set.time, NULL);
+				set.prev = val;
+				if(write(N_pipe2[1], &set, sizeof(tvRT)) != sizeof(tvRT)) {
 					printf("Pipe time stamp write error\n");
 					exit(-1);
 				}
@@ -132,6 +138,7 @@ void *rt_Event(void * ptr) {
 }
 void *dynThread(void * ptr) {
 	Data *five = (Data *) ptr;
+	five->tvPrev = tvGPS;
 	while(1) {
 		if(val != five->prevval) {
 			five->nextval = val;
@@ -139,8 +146,14 @@ void *dynThread(void * ptr) {
 			break;	
 		}
 	}
-	double slope = (double)(five->nextval - five->prevval) / (double) (five->tvNext.tv_usec - five->tvPrev.tv_usec) ;
-	double est = slope * (tvRT.tv_usec - five->tvPrev.tv_usec) + five->prevval;
-	printf("Estimated Value: %.2lf\n", est);
+	struct timeval diff;
+	timersub(&five->tvNext, &five->tvPrev, &diff);
+	double valDiff = five->nextval - five->prevval;
+	double slope = (valDiff) / (diff);
+	timersub(&five->tvRT, &five->tvPrev, &diff);
+	unsigned char est = (slope * diff) + five->prevval;
+	printf("Previous Event Time: %lf\n Previous Event GPS Value: %d\n", five->tvPrev, five->prevval);
+	printf("Push button event time: %lf\n Estimated GPS Value: %d\n", five->tvRT, est);
+	printf("After Event Time: %lf\n After Event GPS Value: %d\n", five->tvNext, five->nextval);
 	pthread_exit(0);	
 }
