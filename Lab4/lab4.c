@@ -10,7 +10,8 @@
 #include <stdint.h>
 #include <fcntl.h>
 #include <sys/types.h>
-#include <time.h>
+#include <sys/time.h>
+#include <sys/mman.h>
 
 #define BTN1 27
 
@@ -23,20 +24,20 @@ typedef struct data {
 	struct timeval tvNext;
 	
 } Data;
-typedef struct rtData {
-	struct timeval time;
-	unsigned char prev;
-} rtData;
-unsigned char val;
-struct timeval tvGPS;	//for time stamps
-struct timeval tvRT;
-
 void *getData(void *);
 void *rt_Event(void *);
 void *dynThread(void *);
 
-
+static unsigned char *val;
+static struct timeval *tvRT;
+struct timeval *tvGPS;
 int main() {
+	
+	val = mmap(NULL, sizeof(*val), PROT_READ | PROT_WRITE, MAP_ANONYMOUS | MAP_SHARED, 0, 0);	
+	tvRT = mmap(NULL, sizeof(*tvRT), PROT_READ | PROT_WRITE, MAP_ANONYMOUS | MAP_SHARED, 0, 0);
+	tvGPS = mmap(NULL, sizeof(*tvGPS), PROT_READ | PROT_WRITE, MAP_ANONYMOUS | MAP_SHARED, 0, 0);
+
+
 	clear_button();
 	int N_pipe2[2];
 	if(pipe(N_pipe2) < 0) {
@@ -63,13 +64,14 @@ int main() {
 
 		pthread_t thread0;
 		pthread_create(&thread0, NULL, getData, N_pipe2);
-		while(1) {		//loop to get GPS data and store it in buffer as well as time stamp
-			if(read(N_pipe1, &val, sizeof(val)) < 0) {
-				printf("N_pipe1 pipe read error\n");
+		while(1) {		//main loop to get GPS data and store it in buffer as well as time stamp
+			if(read(N_pipe1, val, sizeof(*val)) < 0) {
+				printf("N_pipe1 pipe read error\n");	
 				return 0;
+			} else{
+				gettimeofday(tvGPS, NULL);
+				usleep(250000);
 			}
-			gettimeofday(&tvGPS, NULL);
-			usleep(250000);
 		}
 		pthread_join(thread0, NULL);
 	} else {
@@ -79,14 +81,19 @@ int main() {
 	}
 	return 0;
 }
+
+/*
+----------------------------------------------------------------------------------
+----------------------------------------PTHREAD0----------------------------------
+----------------------------------------------------------------------------------
+*/
 void *getData(void * ptr) {
 	int *N_pipe2 = (int *) ptr;
 	while(1) {
 		pthread_t dyn;
 		Data five;
 		int b;
-		rtData set;
-		if(read(N_pipe2[0], &set, sizeof(tvRT)) < 0) {
+		if(read(N_pipe2[0], tvRT, sizeof(*tvRT)) < 0) {
 				printf("N_pipe2 read error\n");
 				exit(-1);
 		} else {
@@ -95,8 +102,7 @@ void *getData(void * ptr) {
 				exit(-1);
 			}
 			if(b == 0) {
-				five.tvRT = set.time;
-				five.prevval = set.prev;	
+				five.tvRT = *tvRT;
 				pthread_create(&dyn, NULL, dynThread, &five);
 			}		
 		}
@@ -107,53 +113,49 @@ void *rt_Event(void * ptr) {
 	int *N_pipe2 = (int *) ptr;
 	uint64_t num_periods = 0;
 	int timer_fd = timerfd_create(CLOCK_MONOTONIC, 0);
-	rtData set;
 	struct itimerspec itval;
-		itval.it_interval.tv_sec = 0;
-		itval.it_interval.tv_nsec = 75000000;
-		itval.it_value.tv_sec = 0;
-		itval.it_value.tv_nsec = 5000000;
-
-		timerfd_settime(timer_fd, 0, &itval, NULL);
+	itval.it_interval.tv_sec = 0;
+	itval.it_interval.tv_nsec = 75000000;
+	itval.it_value.tv_sec = 0;
+	itval.it_value.tv_nsec = 5000000;
+	timerfd_settime(timer_fd, 0, &itval, NULL);
+	read(timer_fd, &num_periods, sizeof(num_periods));
+	while(1){
 		read(timer_fd, &num_periods, sizeof(num_periods));
-		while(1){
-			read(timer_fd, &num_periods, sizeof(num_periods));
-			if(check_button()) {
-				printf("Button Pressed\n");
-				gettimeofday(&set.time, NULL);
-				set.prev = val;
-				if(write(N_pipe2[1], &set, sizeof(tvRT)) != sizeof(tvRT)) {
-					printf("Pipe time stamp write error\n");
-					exit(-1);
-				}
-				clear_button();
+		if(check_button()) {
+			gettimeofday(tvRT, NULL);
+			if(write(N_pipe2[1], tvRT, sizeof(*tvRT)) != sizeof(*tvRT)) {
+				printf("Pipe time stamp write error\n");
+				exit(-1);
 			}
-			if(num_periods > 1) {
-				puts("MISSED WINDOWN\n");
-				exit(1);
-			}
-			usleep(10000);		
+			clear_button();
 		}
-		pthread_exit(0);		
+		if(num_periods > 1) {
+			puts("MISSED WINDOWN\n");
+			exit(1);
+		}
+	}
+	pthread_exit(0);		
 }
 void *dynThread(void * ptr) {
 	Data *five = (Data *) ptr;
-	five->tvPrev = tvGPS;
+	five->prevval = *val;
+	five->tvPrev = *tvGPS;
 	while(1) {
-		if(val != five->prevval) {
-			five->nextval = val;
-			gettimeofday(five->tvNext, NULL);
+		if(*val != five->prevval && *val != 0) {
+			five->nextval = *val;
+			gettimeofday(&five->tvNext, NULL);
 			break;	
 		}
 	}
 	struct timeval diff;
 	timersub(&five->tvNext, &five->tvPrev, &diff);
-	double valDiff = five->nextval - five->prevval;
-	double slope = (valDiff) / (diff);
+	double valDiff = five->nextval - five->prevval;	
+	double slope = (valDiff) / (diff.tv_usec);
 	timersub(&five->tvRT, &five->tvPrev, &diff);
-	unsigned char est = (slope * diff) + five->prevval;
-	printf("Previous Event Time: %lf\n Previous Event GPS Value: %d\n", five->tvPrev, five->prevval);
-	printf("Push button event time: %lf\n Estimated GPS Value: %d\n", five->tvRT, est);
-	printf("After Event Time: %lf\n After Event GPS Value: %d\n", five->tvNext, five->nextval);
+	unsigned char est = (slope * diff.tv_usec) + five->prevval;
+	printf("Previous Event Time: %ld\n Previous Event GPS Value: %d\n", five->tvPrev, five->prevval);
+	printf("Push button event time: %ld\n Estimated GPS Value: %d\n", five->tvRT, est);
+	printf("After Event Time: %ld\n After Event GPS Value: %d\n", five->tvNext, five->nextval);
 	pthread_exit(0);	
 }
