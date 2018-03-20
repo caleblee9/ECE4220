@@ -109,6 +109,11 @@ void *getData(void * ptr) {
 	}
 	pthread_exit(0);
 }
+/*
+--------------------------------------------------------------------------------------------
+---------------------------------------PTHREAD1---------------------------------------------
+--------------------------------------------------------------------------------------------
+*/
 void *rt_Event(void * ptr) {
 	int *N_pipe2 = (int *) ptr;
 	uint64_t num_periods = 0;
@@ -137,6 +142,11 @@ void *rt_Event(void * ptr) {
 	}
 	pthread_exit(0);		
 }
+/*
+---------------------------------------------------------------------
+------------------------------CHILD THREADS--------------------------
+---------------------------------------------------------------------
+*/
 void *dynThread(void * ptr) {
 	Data *five = (Data *) ptr;
 	five->prevval = *val;
@@ -150,12 +160,18 @@ void *dynThread(void * ptr) {
 	}
 	struct timeval diff;
 	timersub(&five->tvNext, &five->tvPrev, &diff);
-	double valDiff = five->nextval - five->prevval;	
+	double valDiff = (double) five->nextval - five->prevval;
+		
 	double slope = (valDiff) / (diff.tv_usec);
 	timersub(&five->tvRT, &five->tvPrev, &diff);
-	unsigned char est = (slope * diff.tv_usec) + five->prevval;
-	printf("Previous Event Time: %ld\n Previous Event GPS Value: %d\n", five->tvPrev, five->prevval);
-	printf("Push button event time: %ld\n Estimated GPS Value: %d\n", five->tvRT, est);
-	printf("After Event Time: %ld\n After Event GPS Value: %d\n", five->tvNext, five->nextval);
+	unsigned char est = (double) (slope * diff.tv_usec) + (double) five->prevval;
+
+
+	printf("Previous Event Time: %ld\n", five->tvPrev);
+	printf("Previous Event GPS Value: %d\n", five->prevval);
+	printf("Push button event time: %ld\n", five->tvRT);
+	printf("Estimated GPS Value: %d \n", est);
+	printf("After Event Time: %ld \n", five->tvNext);
+	printf("After Event GPS Value: %d\n",five->nextval);
 	pthread_exit(0);	
 }
