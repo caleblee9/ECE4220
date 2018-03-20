@@ -19,7 +19,7 @@
 typedef struct data {
 	struct timeval tvRT;
 	unsigned char prevval;
-	struct timeval tvPrev;
+	struct timeval tvPrev;	//struct to send data to
 	unsigned char nextval;
 	struct timeval tvNext;
 	
@@ -29,21 +29,21 @@ void *rt_Event(void *);
 void *dynThread(void *);
 
 static unsigned char *val;
-static struct timeval *tvRT;
+static struct timeval *tvRT;	//buffers
 struct timeval *tvGPS;
 int main() {
 	
 	val = mmap(NULL, sizeof(*val), PROT_READ | PROT_WRITE, MAP_ANONYMOUS | MAP_SHARED, 0, 0);	
-	tvRT = mmap(NULL, sizeof(*tvRT), PROT_READ | PROT_WRITE, MAP_ANONYMOUS | MAP_SHARED, 0, 0);
+	tvRT = mmap(NULL, sizeof(*tvRT), PROT_READ | PROT_WRITE, MAP_ANONYMOUS | MAP_SHARED, 0, 0);	//mmap to share memory between parent and children
 	tvGPS = mmap(NULL, sizeof(*tvGPS), PROT_READ | PROT_WRITE, MAP_ANONYMOUS | MAP_SHARED, 0, 0);
 
 
-	clear_button();
+	clear_button();	//make sure button is off
 	int N_pipe2[2];
 	if(pipe(N_pipe2) < 0) {
 		printf("N_pipe2 creation error\n");
 		exit(-1);
-	}
+	}					//pipe and fork to allow parent and child communication
 	int a;
 	if((a = fork()) < 0) {
 		printf("Fork error\n");
@@ -76,7 +76,7 @@ int main() {
 		pthread_join(thread0, NULL);
 	} else {
 		pthread_t thread1;
-		pthread_create(&thread1, NULL, rt_Event, &N_pipe2);
+		pthread_create(&thread1, NULL, rt_Event, &N_pipe2);	//rt Event thread
 		pthread_join(thread1, 0);
 	}
 	return 0;
@@ -94,15 +94,15 @@ void *getData(void * ptr) {
 		Data five;
 		int b;
 		if(read(N_pipe2[0], tvRT, sizeof(*tvRT)) < 0) {
-				printf("N_pipe2 read error\n");
+				printf("N_pipe2 read error\n");	//if receive data through pipe
 				exit(-1);
 		} else {
 			if((b = fork()) < 0) {
-				printf("Fork error\n");
+				printf("Fork error\n");	//create child
 				exit(-1);
 			}
 			if(b == 0) {
-				five.tvRT = *tvRT;
+				five.tvRT = *tvRT;	//create thread to process data
 				pthread_create(&dyn, NULL, dynThread, &five);
 			}		
 		}
@@ -121,7 +121,7 @@ void *rt_Event(void * ptr) {
 	struct itimerspec itval;
 	itval.it_interval.tv_sec = 0;
 	itval.it_interval.tv_nsec = 75000000;
-	itval.it_value.tv_sec = 0;
+	itval.it_value.tv_sec = 0;			//set period to 75 ms and start time to 50 ms 
 	itval.it_value.tv_nsec = 5000000;
 	timerfd_settime(timer_fd, 0, &itval, NULL);
 	read(timer_fd, &num_periods, sizeof(num_periods));
@@ -129,7 +129,7 @@ void *rt_Event(void * ptr) {
 		read(timer_fd, &num_periods, sizeof(num_periods));
 		if(check_button()) {
 			gettimeofday(tvRT, NULL);
-			if(write(N_pipe2[1], tvRT, sizeof(*tvRT)) != sizeof(*tvRT)) {
+			if(write(N_pipe2[1], tvRT, sizeof(*tvRT)) != sizeof(*tvRT)) {	//send timestamp of rtEvent through pipe
 				printf("Pipe time stamp write error\n");
 				exit(-1);
 			}
@@ -149,19 +149,19 @@ void *rt_Event(void * ptr) {
 */
 void *dynThread(void * ptr) {
 	Data *five = (Data *) ptr;
-	five->prevval = *val;
+	five->prevval = *val;		//get before vals for the rt Event
 	five->tvPrev = *tvGPS;
 	while(1) {
 		if(*val != five->prevval && *val != 0) {
-			five->nextval = *val;
+			five->nextval = *val;			//get next vals through the event
 			gettimeofday(&five->tvNext, NULL);
 			break;	
 		}
 	}
 	struct timeval diff;
 	timersub(&five->tvNext, &five->tvPrev, &diff);
-	double valDiff = (double) five->nextval - five->prevval;
-		
+	double valDiff = (double) five->nextval - five->prevval;	
+								//calculate information
 	double slope = (valDiff) / (diff.tv_usec);
 	timersub(&five->tvRT, &five->tvPrev, &diff);
 	unsigned char est = (double) (slope * diff.tv_usec) + (double) five->prevval;
@@ -170,7 +170,7 @@ void *dynThread(void * ptr) {
 	printf("Previous Event Time: %ld\n", five->tvPrev);
 	printf("Previous Event GPS Value: %d\n", five->prevval);
 	printf("Push button event time: %ld\n", five->tvRT);
-	printf("Estimated GPS Value: %d \n", est);
+	printf("Estimated GPS Value: %d \n", est);		//print information
 	printf("After Event Time: %ld \n", five->tvNext);
 	printf("After Event GPS Value: %d\n",five->nextval);
 	pthread_exit(0);	
