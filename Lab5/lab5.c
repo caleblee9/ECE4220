@@ -26,7 +26,7 @@ int main(int argc, char *argv[]) {
 	m.ip = malloc(sizeof(char) * 32);
 
 	m.num = 0;	//set master number to 0
-	char *ip = malloc(sizeof(char) * 32); //store parsed IPs
+	struct in_addr ip;
 	int mNum; //store parsed values
 	const char s[2] = " "; //delimiter
 	char *fC; //to check for "#"
@@ -38,6 +38,7 @@ int main(int argc, char *argv[]) {
 	if(sock < 0) {
 		printf("Error opening socket\n");
 		exit(-1);
+				printf("%s", m.lastVal);
 	}
 	struct sockaddr_in server;
 	struct sockaddr_in addr;
@@ -67,53 +68,47 @@ int main(int argc, char *argv[]) {
 			printf("Receiving error\n");
 			exit(-1);
 		}			
-		printf("Received message: %s", buffer); //print the message received
 
 		if(strcmp(buffer, "WHOIS\n") == 0)  {
-			if(m.num == 0) {
-				printf("No master assigned yet\n");
-			} else {
-				printf("IP %s is the master\n", m.ip);
+			if(m.num != 0) {
+				addr.sin_addr.s_addr = inet_addr("128.206.19.255"); 	//set IP to broadcast (.255)
+				sprintf(buffer, "IP %s is the master\n", m.ip);
+				n = sendto(sock, buffer, 40, 0, (struct sockaddr *)&addr, fromlen);
+				if (n < 0) {
+					printf("send error\n");
+					exit(1);
+
+				}
 			}
 		}
 
 		if(strcmp(buffer, "VOTE\n") == 0) {
-			m.num = 0;
-			rnd = (rand() % 10 + 1);
 			bzero(buffer, 40);
-			sprintf(buffer, "# %s %d\n", getIP(), rnd);
+			rnd = (rand() % 10 + 1);
+			sprintf(buffer, "# %s %d\n", getIP(), rnd);	
 			addr.sin_addr.s_addr = inet_addr("128.206.19.255"); 	//set IP to broadcast (.255)
 			n = sendto(sock, buffer, 40, 0, (struct sockaddr *)&addr, fromlen);
 			if (n < 0 ) {
 				printf("Error sento\n");
+				exit(1);
 			}
 
 		}
+		int i;
 		fC = strtok(buffer, s);
 		if(strcmp(fC, "#") == 0) {
-			ip = strtok(NULL, s);
-			mNum = atoi(strtok(NULL, s));
+			ip.s_addr = inet_addr(strtok(NULL, s));
+			mNum = atoi(strtok(NULL, "\n"));
 			if(mNum > m.num) {
 				m.num = mNum;
-				strcpy(m.ip, ip);
+				strcpy(m.ip, inet_ntoa(ip));
 			} else if(mNum == m.num) {
-				lastVal = strtok(ip, ".");
-				while(lastVal != NULL) {
-					lastVal = strtok(NULL, ".");
-				}
-				m.lastVal = strtok(m.ip, ".");
-				while(m.lastVal != NULL) {
-					m.lastVal = strtok(NULL, ".");
-				}
-				printf("%s %s\n", lastVal, m.lastVal);
-				if(atoi(lastVal) > atoi(m.lastVal)) {
-					m.num = mNum;
-					strcpy(m.ip, ip);
-				}
+				if(ip.s_addr > inet_addr(m.ip)) {
+					strcpy(m.ip, inet_ntoa(ip));
+				}	
 			}	
 		}
 	}
-	free(ip);
 	free(m.ip);
         return 0;
 }
