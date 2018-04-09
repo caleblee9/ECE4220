@@ -11,7 +11,6 @@
 char *getIP();
 typedef struct master {
 	char *ip; //client ip
-	char *name;	//client name
 	int num; //rand number generated
 	char *lastVal; //of IP
 } Master;
@@ -28,9 +27,10 @@ int main(int argc, char *argv[]) {
 	m.num = 0;	//set master number to 0
 	struct in_addr ip;
 	int mNum; //store parsed values
-	const char s[2] = " "; //delimiter
 	char *fC; //to check for "#"
 	char *lastVal; //received last val of ip
+	char *tmp = malloc(sizeof(char) * 40);
+	int i;
 	int n;
 	char buffer[40]; //message with size of 40
 	socklen_t fromlen;
@@ -67,12 +67,14 @@ int main(int argc, char *argv[]) {
 		if (n < 0) {
 			printf("Receiving error\n");
 			exit(-1);
-		}			
-
+		}	
+		strcpy(tmp, buffer);		
+		fC = strtok(tmp, " ");
 		if(strcmp(buffer, "WHOIS\n") == 0)  {
-			if(m.num != 0) {
+			if(m.num != 0 && strcmp(m.ip, getIP()) == 0) {
+				bzero(buffer, 40);
 				addr.sin_addr.s_addr = inet_addr("128.206.19.255"); 	//set IP to broadcast (.255)
-				sprintf(buffer, "IP %s is the master\n", m.ip);
+				sprintf(buffer, "Master: Caleb on board %s\n", getIP());
 				n = sendto(sock, buffer, 40, 0, (struct sockaddr *)&addr, fromlen);
 				if (n < 0) {
 					printf("send error\n");
@@ -80,9 +82,8 @@ int main(int argc, char *argv[]) {
 
 				}
 			}
-		}
-
-		if(strcmp(buffer, "VOTE\n") == 0) {
+			continue;
+		} else if (strcmp(buffer, "VOTE\n") == 0) {
 			bzero(buffer, 40);
 			rnd = (rand() % 10 + 1);
 			sprintf(buffer, "# %s %d\n", getIP(), rnd);	
@@ -92,12 +93,9 @@ int main(int argc, char *argv[]) {
 				printf("Error sento\n");
 				exit(1);
 			}
-
-		}
-		int i;
-		fC = strtok(buffer, s);
-		if(strcmp(fC, "#") == 0) {
-			ip.s_addr = inet_addr(strtok(NULL, s));
+			continue;
+		} else if(strcmp(fC, "#") == 0) {
+			ip.s_addr = inet_addr(strtok(NULL, " "));
 			mNum = atoi(strtok(NULL, "\n"));
 			if(mNum > m.num) {
 				m.num = mNum;
@@ -109,6 +107,7 @@ int main(int argc, char *argv[]) {
 			}	
 		}
 	}
+	free(tmp);
 	free(m.ip);
         return 0;
 }
