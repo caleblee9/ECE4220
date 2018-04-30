@@ -26,21 +26,14 @@ struct timeval times[4];
 struct timeval noT;
 
 void printStatus(char *, struct timeval);
-void *sw1_Event(void *);
-void *sw2_Event(void *);
-void *bt1_Event(void *);
-void *bt2_Event(void *);
+void *rt_Event(void *);
 void *printEvents(void *);
 char *getIP();
 int cdev_id;
-static char sw1B[40];
-static char sw2B[40];
-static char b1B[40];
-static char b2B[40];
+static char buffer[40];
 
 char list[64];
 
-sem_t mutex;
 
 int main() {
 
@@ -51,86 +44,33 @@ int main() {
 		exit(1);
 	}
 
-	sem_init(&mutex, 0, 1);		//intialize semaphore to 1
-	pthread_t t1, t2, t3, t4, t5;
-	pthread_create(&t1, NULL, sw1_Event, NULL);
-	pthread_create(&t2, NULL, sw2_Event, NULL);	//rt Event thread
-	pthread_create(&t3, NULL, bt1_Event, NULL);	//rt Event thread
-	pthread_create(&t4, NULL, bt2_Event, NULL);	//rt Event thread
-	pthread_create(&t5, NULL, printEvents, NULL);
+	pthread_t t1, t2;
+	pthread_create(&t1, NULL, rt_Event, NULL);
+	pthread_create(&t2, NULL, printEvents, NULL);
 
 	pthread_join(t1, 0);
 	pthread_join(t2, 0);
-	pthread_join(t3, 0);
-	pthread_join(t4, 0);
-	pthread_join(t5, 0);
 	return 0;
 }
-void *sw1_Event(void *ptr) {
+void *rt_Event(void *ptr) {
 	while(1) {
-		sem_wait(&mutex);
-		bzero(sw1B, 40);
-		read(cdev_id, sw1B, sizeof(sw1B));
-		if(sw1B[0] != '\0') {
-			if(strcmp(sw1B, "S1") == 0) {
-				printf("Switch 1 flipped\n");
+		bzero(buffer, 40);
+		read(cdev_id, buffer, sizeof(buffer));
+		if(buffer[0] != '\0') {
+			if(strcmp(buffer, "S1") == 0) {
 				events[0] = 1;
-				strcat(list, "SW1");
-				gettimeofday(&times[0], NULL);
-
-			}
-		}
-		sem_post(&mutex);
-	}
-	pthread_exit(0);		
-}
-void *sw2_Event(void *ptr) {
-	while(1) {
-		sem_wait(&mutex);
-		bzero(sw2B, 40);
-		read(cdev_id, sw2B, sizeof(sw2B));
-		if(sw2B[0] != '\0') {
-			if(strcmp(sw2B, "S2") == 0) {
+				gettimeofday(&times[0]);
+			} else if(strcmp(buffer, "S2") == 0) {
 				events[1] = 1;
-				strcat(list, "SW2");
-				gettimeofday(&times[1], NULL);
-
-			}
-		}
-		sem_post(&mutex);
-	}
-	pthread_exit(0);		
-}
-void *bt1_Event(void *ptr) {
-	while(1) {
-		sem_wait(&mutex);
-		bzero(b1B, 40);
-		read(cdev_id, b1B, sizeof(b1B));
-		if(b1B[0] != '\0') {
-			if(strcmp(b1B, "B1") == 0) {
+				gettimeofday(&times[1]);
+			} else if(strcmp(buffer, "B1") == 0) {
 				events[2] = 1;
-				strcat(list, "BT1");
-				gettimeofday(&times[2], NULL);
-
-			}
-		}
-		sem_post(&mutex);
-	}
-	pthread_exit(0);		
-}
-void *bt2_Event(void *ptr) {
-	while(1) {
-		sem_wait(&mutex);
-		bzero(b2B, 40);
-		read(cdev_id, b2B, sizeof(b2B));
-		if(b2B[0] != '\0') {
-			if(strcmp(b2B, "B2") == 0) {
+				gettimeofday(&times[2]);
+			} else if(strcmp(buffer, "B2") == 0) {
 				events[3] = 1;
-				strcat(list, "BT2");
-			gettimeofday(&times[3], NULL);
-			}
+				gettimeofday(&times[0]);
+			} 
 		}
-		sem_post(&mutex);
 	}
 	pthread_exit(0);		
 }
@@ -146,9 +86,7 @@ void *printEvents(void *ptr) {
 	timerfd_settime(timer_fd, 0, &itval, NULL);
 	read(timer_fd, &num_periods, sizeof(num_periods));
 	while(1){
-	//	sem_wait(&mutex);
 		read(timer_fd, &num_periods, sizeof(num_periods));
-	/*	
 		for(i = 0; i < 4; i++) {
 			if(events[i] == 1) {
 				switch(i) {
@@ -163,13 +101,11 @@ void *printEvents(void *ptr) {
 						break;
 					case 3:
 						printStatus("Button 2", times[3]);
-						break;
+						break;			
 				}
 			}
 			events[i] = 0;
 		}
-	*/
-		printf("%s\n", list);
 		gettimeofday(&noT);
 		printf("STATUS\n");
 		printf("Time: %ld.%06ld\n", noT.tv_sec, noT.tv_usec);
@@ -181,11 +117,7 @@ void *printEvents(void *ptr) {
 		if(num_periods > 1) {
 			puts("MISSED WINDOWN\n");
 			exit(1);
-		}
-		
-		bzero(list, 64);
-	//	sem_post(&mutex);
-	//	usleep(10000);
+		}	
 	}
 	pthread_exit(0);
 }
