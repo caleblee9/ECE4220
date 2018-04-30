@@ -21,8 +21,8 @@
 #define SW2 23
 
 
-int events[4] = {0};
-struct timeval times[4];
+int lNum = 0;
+struct timeval eT;
 struct timeval noT;
 
 void printStatus(char *, struct timeval);
@@ -31,14 +31,12 @@ void *printEvents(void *);
 char *getIP();
 int cdev_id;
 static char buffer[40];
-
-char list[64];
+char list[16][32] = {"\0\0"};
 
 
 int main() {
 
 	wiringPiSetup();
-	list[0] = ' ';	
 	if((cdev_id = open(CHAR_DEV, O_RDONLY)) == -1) {
 		printf("Cannot open device %s\n", CHAR_DEV);
 		exit(1);
@@ -58,17 +56,17 @@ void *rt_Event(void *ptr) {
 		read(cdev_id, buffer, sizeof(buffer));
 		if(buffer[0] != '\0') {
 			if(strcmp(buffer, "S1") == 0) {
-				events[0] = 1;
-				gettimeofday(&times[0]);
+				gettimeofday(&eT);
+				sprintf(list[lNum++], "SW1 %ld.%06ld\n", eT.tv_sec, eT.tv_usec);
 			} else if(strcmp(buffer, "S2") == 0) {
-				events[1] = 1;
-				gettimeofday(&times[1]);
+				gettimeofday(&eT);
+				sprintf(list[lNum++], "SW2 %ld.%06ld\n", eT.tv_sec, eT.tv_usec);
 			} else if(strcmp(buffer, "B1") == 0) {
-				events[2] = 1;
-				gettimeofday(&times[2]);
+				gettimeofday(&eT);
+				sprintf(list[lNum++], "BT1 %ld.%06ld\n", eT.tv_sec, eT.tv_usec);
 			} else if(strcmp(buffer, "B2") == 0) {
-				events[3] = 1;
-				gettimeofday(&times[0]);
+				gettimeofday(&eT);
+				sprintf(list[lNum++], "BT2 %ld.%06ld\n", eT.tv_sec, eT.tv_usec);
 			} 
 		}
 	}
@@ -87,33 +85,21 @@ void *printEvents(void *ptr) {
 	read(timer_fd, &num_periods, sizeof(num_periods));
 	while(1){
 		read(timer_fd, &num_periods, sizeof(num_periods));
-		for(i = 0; i < 4; i++) {
-			if(events[i] == 1) {
-				switch(i) {
-					case 0:
-						printStatus("Switch 1", times[0]);
-						break;
-					case 1:
-						printStatus("Switch 2", times[1]);
-						break;
-					case 2:
-						printStatus("Button 1", times[2]);
-						break;
-					case 3:
-						printStatus("Button 2", times[3]);
-						break;			
-				}
-			}
-			events[i] = 0;
+		i = 0;
+		while(strcmp(list[i], "\0\0") != 0) {
+			printf("%s", list[i]);
+			bzero(list[i], 32);
+			i++;
 		}
 		gettimeofday(&noT);
-		printf("STATUS\n");
+		printf("\nSTATUS\n");
 		printf("Time: %ld.%06ld\n", noT.tv_sec, noT.tv_usec);
 		printf("From: %s\n", getIP());		//for testing purposes
 		printf("Button 1: %d\n", digitalRead(BUTTON1));
 		printf("Button 2: %d\n", digitalRead(BUTTON2));
 		printf("Switch 1: %d\n", digitalRead(SW1));
-		printf("Switch 2: %d\n", digitalRead(SW2));
+		printf("Switch 2: %d\n\n", digitalRead(SW2));
+		lNum = 0;
 		if(num_periods > 1) {
 			puts("MISSED WINDOWN\n");
 			exit(1);
