@@ -27,7 +27,7 @@ static int major;
 static char msg[MSG_SIZE];
 int mydev_id; //char device id
 unsigned long *start;
-unsigned long *GPFSEL0; //speaker
+unsigned long *GPFSEL0; //LEDs
 unsigned long *GPFSEL1; //buttons
 unsigned long *GPFSET; //turn speaker on
 unsigned long *GPFCLR; //clear event detect
