@@ -22,10 +22,18 @@ sqlite3 *db;
 char *err_msg = 0;
 int rc;  
 const char *sql; 
-char buffer[40]; //message with size of 40
+char buffer[40]; //receive buffer
+int sock; 
+struct sockaddr_in server;
+struct sockaddr_in addr;
+socklen_t fromlen;
+
+
 typedef struct serverInfo {
 	int socket;
 	struct sockaddr_in address;
+	struct sockaddr_in serv;
+
 	socklen_t len;
 }ServerInfo;
 
@@ -65,18 +73,13 @@ int main(int argc, char *argv[]) {
 --------------------------------------------------------------------------------
 */   
     
-	int n;
-	struct in_addr ip;
-	socklen_t fromlen;
 
 
-	int sock = socket(AF_INET, SOCK_DGRAM, 0); //create the socket
+	sock = socket(AF_INET, SOCK_DGRAM, 0); //create the socket
 	if(sock < 0) {
 		printf("Error opening socket\n");
 		exit(-1);
 	}
-	struct sockaddr_in server;
-	struct sockaddr_in addr;
 	bzero(&server, sizeof(server)); //sets all values of server to 0
 	server.sin_family = AF_INET; //Internet domain
 	server.sin_addr.s_addr = INADDR_ANY;	//IP address on running machine
@@ -89,11 +92,10 @@ int main(int argc, char *argv[]) {
 	}
 	
 	int broadEnable = 1;
-	int ret = setsockopt(sock, SOL_SOCKET, SO_BROADCAST, &broadEnable, sizeof(broadEnable)); //set socket to allow broadcast
-	if(ret < 0 ) {
-		printf("Error setting socket to broadcast\n");
+	if(setsockopt(sock, SOL_SOCKET, SO_BROADCAST, &broadEnable, sizeof(broadEnable)) < 0) {
+		printf("error setting socket options\n");
 		exit(-1);
-	}
+	} //set socket to allow broadcast
 	fromlen = sizeof(struct sockaddr_in); //size of socket structure
 
 /*
@@ -107,6 +109,8 @@ int main(int argc, char *argv[]) {
 	s1.socket = sock;
 	s1.address = addr;
 	s1.len = fromlen;
+	s1.serv = server;
+
 	pthread_create(&t1, NULL, getInfo, &s1);
 	pthread_create(&t2, NULL, menu, NULL);	
 	pthread_join(t1, NULL);	
@@ -116,6 +120,11 @@ int main(int argc, char *argv[]) {
 	
 	return 0;
 }
+/*
+-----------------------------------------------------------------------------
+--------------------------------GET IP---------------------------------------
+-----------------------------------------------------------------------------
+*/
 char *getIP() {	
 	int n;
     	struct ifreq ifr;
@@ -131,6 +140,12 @@ char *getIP() {
     return inet_ntoa(( (struct sockaddr_in *)&ifr.ifr_addr )->sin_addr);
 
 }
+/*
+-----------------------------------------------------------------------------
+--------------------------------CALLBACK-------------------------------------
+-----------------------------------------------------------------------------
+*/
+
 int callback(void *NotUsed, int argc, char **argv, 
                     char **azColName) {
     
@@ -145,6 +160,12 @@ int callback(void *NotUsed, int argc, char **argv,
     
     return 0;
 }
+/*
+-----------------------------------------------------------------------------
+--------------------------------GETINFO--------------------------------------
+-----------------------------------------------------------------------------
+*/
+
 void *getInfo(void *ptr) {
 	ServerInfo *s1 = (ServerInfo *) ptr;
 	int n;
@@ -152,12 +173,16 @@ void *getInfo(void *ptr) {
 	while(1) {
 		bzero(buffer, 40); //refresh buffer
 		n = recvfrom(s1->socket, buffer, 40, 0, (struct sockaddr *)&s1->address, &s1->len); //receive messages from clients
+		if( strcmp(buffer, "RED") == 0 || strcmp(buffer, "YELLOW") == 0 || strcmp(buffer, "GREEN") == 0) 
+		{
+			continue;
+		}
 		if (n < 0) {
 			printf("Receiving error\n");
 			exit(-1);
 		}
 		printf("%s\n", buffer);
-
+		fflush(stdout);
 		sql = sqlite3_mprintf("INSERT INTO Log VALUES ('%q');", buffer);	
 		rc = sqlite3_exec(db, sql, 0, 0, &err_msg);
    
@@ -168,12 +193,20 @@ void *getInfo(void *ptr) {
 	}
 	pthread_exit(0);
 }
+/*
+-----------------------------------------------------------------------------
+--------------------------------USER MENU------------------------------------
+-----------------------------------------------------------------------------
+*/
+
 void *menu(void *ptr) {
 	int choice = 0;
+	int LED = 0;
+	int n;
 	while(1) {
 		printf("What would you like to do?\n");
 		printf("1. Display Log\n");
-		printf("2. Enable/Disable LEDs");
+		printf("2. Enable/Disable LEDs\n");
 		printf("0. Exit\n");
 		scanf("%d", &choice);
 		if(choice == 0) {
@@ -190,7 +223,39 @@ void *menu(void *ptr) {
 
         			sqlite3_free(err_msg);
     			}
+		} else if (choice == 2) {
+			
+			addr.sin_addr.s_addr = inet_addr("128.206.19.255"); 	//set IP to broadcast (.255)
+			printf("1. RED\n");
+			printf("2. Yellow\n");
+			printf("3. GREEN\n");
+			printf("4. Back\n");
+			scanf("%d", &LED);
+			if(LED == 1) {
+				n = sendto(sock, "RED", 3, 0, (struct sockaddr *)&addr, fromlen);
+			 	if (n < 0){
+					printf("Send error\n");
+					exit(0);
+				}		
+			
+			} else if(LED == 2) {
+				n = sendto(sock, "YELLOW", 6, 0, (struct sockaddr *)&addr, fromlen);
+				if (n < 0){
+					printf("Send error\n");
+					exit(0);
+				}			
+			} else if(LED == 3) {
+				n = sendto(sock, "GREEN", 5, 0, (struct sockaddr *)&addr, fromlen);
+				if (n < 0){
+					printf("Send error\n");
+					exit(0);
+				}			
+			} else if(LED == 4) {
+				continue;
+			}
+			
 		}
+		
 
 	}
 	system("clear");
