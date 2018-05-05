@@ -47,7 +47,6 @@ uint16_t get_ADC(int channel);	// prototype
 
 float b4[5];
 float checkZero[10];
-float sum;
 int out;
 int zero;
 double past;
@@ -262,8 +261,6 @@ void *receiveEvents(void *ptr) {
 	pthread_exit(0);
 }
 void *ADC(void *ptr){
-	FILE * fp;
-	fp = fopen("graph.txt", "w");
 	uint16_t ADCvalue;
 	double voltage = 0;
 	// Configure the SPI
@@ -271,7 +268,6 @@ void *ADC(void *ptr){
 		error("wiringPiSPISetup failed\n");
 
 	}
-	sum = 0;
 	// Loop that constantly reads the converted value from the selected channel, and
 	// prints it to the screen.
 	// This is a simple test, with a sampling frequency of ~1 Hz. Remember that sleep()
@@ -285,8 +281,6 @@ void *ADC(void *ptr){
 		check(voltage);
 		usleep(500);
 	}
-	printf("outta here");
-	fclose(fp);
 	pthread_exit(0);
 
 }
@@ -327,7 +321,7 @@ void check(double ADC){
 		}
 		checkZero[j] = ADC;
 		if(checkZero[j] == 0){
-				printf("NO power");
+			printf("NO power");
 		}
 
 	}
