@@ -112,7 +112,7 @@ int main(int argc, char *argv[]) {
 	s1.serv = server;
 
 	pthread_create(&t1, NULL, getInfo, &s1);
-	pthread_create(&t2, NULL, menu, NULL);	
+	pthread_create(&t2, NULL, menu, &sock);	
 	pthread_join(t1, NULL);	
 	pthread_join(t2, NULL);
 
@@ -209,50 +209,51 @@ void *menu(void *ptr) {
 		printf("2. Enable/Disable LEDs\n");
 		printf("0. Exit\n");
 		scanf("%d", &choice);
-		if(choice == 0) {
-			break;
-		}else if (choice == 1) {
-			sql = "SELECT * FROM Log";
+		switch(choice) {
+			case 0:
+				break;
+			case 1:
+				sql = "SELECT * FROM Log";
         
-    			rc = sqlite3_exec(db, sql, callback, 0, &err_msg);
+    				rc = sqlite3_exec(db, sql, callback, 0, &err_msg);
     
-    			if (rc != SQLITE_OK ) {
+    				if (rc != SQLITE_OK ) {
         
-        			fprintf(stderr, "Failed to select data\n");
-        			fprintf(stderr, "SQL error: %s\n", err_msg);
+        				fprintf(stderr, "Failed to select data\n");
+        				fprintf(stderr, "SQL error: %s\n", err_msg);
 
-        			sqlite3_free(err_msg);
-    			}
-		} else if (choice == 2) {
-			
-			addr.sin_addr.s_addr = inet_addr("128.206.19.255"); 	//set IP to broadcast (.255)
-			printf("1. RED\n");
-			printf("2. Yellow\n");
-			printf("3. GREEN\n");
-			printf("4. Back\n");
-			scanf("%d", &LED);
-			if(LED == 1) {
-				n = sendto(sock, "RED", 3, 0, (struct sockaddr *)&addr, fromlen);
-			 	if (n < 0){
-					printf("Send error\n");
-					exit(0);
-				}		
-			
-			} else if(LED == 2) {
-				n = sendto(sock, "YELLOW", 6, 0, (struct sockaddr *)&addr, fromlen);
-				if (n < 0){
-					printf("Send error\n");
-					exit(0);
-				}			
-			} else if(LED == 3) {
-				n = sendto(sock, "GREEN", 5, 0, (struct sockaddr *)&addr, fromlen);
-				if (n < 0){
-					printf("Send error\n");
-					exit(0);
-				}			
-			} else if(LED == 4) {
-				continue;
-			}
+        				sqlite3_free(err_msg);
+    				}
+				break;
+			case 2:	
+				addr.sin_addr.s_addr = inet_addr("128.206.19.255"); 	//set IP to broadcast (.255)
+				printf("1. RED\n");
+				printf("2. Yellow\n");
+				printf("3. GREEN\n");
+				printf("4. Back\n");
+				scanf("%d", &LED);
+				if(LED == 1) {
+					n = sendto(sock, "RED", 3, 0, (struct sockaddr *)&addr, fromlen);
+			 		if (n < 0){
+						printf("Send error\n");
+						exit(0);
+					}			
+				} else if(LED == 2) {
+					n = sendto(sock, "YELLOW", 6, 0, (struct sockaddr *)&addr, fromlen);
+					if (n < 0){
+						printf("Send error\n");
+						exit(0);
+					}			
+				} else if(LED == 3) {
+					n = sendto(sock, "GREEN", 5, 0, (struct sockaddr *)&addr, fromlen);
+					if (n < 0){
+						printf("Send error\n");
+						exit(0);
+					}			
+				} else if(LED == 4) {
+					continue;
+				}
+				break;
 			
 		}
 		
