@@ -22,20 +22,24 @@ sqlite3 *db;
 char *err_msg = 0;
 int rc;  
 const char *sql; 
-char buffer[40]; //receive buffer
+char buffer[50]; //receive buffer
 int sock; 
 struct sockaddr_in server;
 struct sockaddr_in addr;
 socklen_t fromlen;
-
-
-typedef struct serverInfo {
-	int socket;
-	struct sockaddr_in address;
-	struct sockaddr_in serv;
-
-	socklen_t len;
-}ServerInfo;
+typedef struct data {
+	char event[16];
+	char id[16];
+	double time;
+	int b1;
+	int b2;
+	int s1;
+	int s2;
+	int r;
+	int y;
+	int g;
+	double volt;
+} Data;
 
 int main(int argc, char *argv[]) {
 	if(argc < 2) {
@@ -57,9 +61,8 @@ int main(int argc, char *argv[]) {
         	return 1;
     	}
     
-    	sql = "DROP TABLE IF EXISTS Log;" \
-                "CREATE TABLE Log(" \
-		"Event TEXT);";
+    	sql = "DROP TABLE IF EXISTS Log;" 
+                "CREATE TABLE Log(Event TEXT, ID TEXT, TIME REAL, Button1 INT, Button2 INT, Switch1 INT, Switch2 INT, RED INT, YELLOW INT, GREEN INT, VOLTAGE REAL);";
 
     	rc = sqlite3_exec(db, sql, 0, 0, &err_msg);
     
@@ -105,14 +108,8 @@ int main(int argc, char *argv[]) {
 */
 	
 	pthread_t t1, t2;
-	ServerInfo s1;
-	s1.socket = sock;
-	s1.address = addr;
-	s1.len = fromlen;
-	s1.serv = server;
-
-	pthread_create(&t1, NULL, getInfo, &s1);
-	pthread_create(&t2, NULL, menu, &sock);	
+	pthread_create(&t1, NULL, getInfo, NULL);
+	pthread_create(&t2, NULL, menu, NULL);	
 	pthread_join(t1, NULL);	
 	pthread_join(t2, NULL);
 
@@ -167,12 +164,11 @@ int callback(void *NotUsed, int argc, char **argv,
 */
 
 void *getInfo(void *ptr) {
-	ServerInfo *s1 = (ServerInfo *) ptr;
 	int n;
-	
+	Data d;	
 	while(1) {
-		bzero(buffer, 40); //refresh buffer
-		n = recvfrom(s1->socket, buffer, 40, 0, (struct sockaddr *)&s1->address, &s1->len); //receive messages from clients
+		bzero(buffer, 50); //refresh buffer
+		n = recvfrom(sock, buffer, 50, 0, (struct sockaddr *)&addr, &fromlen); //receive messages from clients
 		if( strcmp(buffer, "RED") == 0 || strcmp(buffer, "YELLOW") == 0 || strcmp(buffer, "GREEN") == 0) 
 		{
 			continue;
@@ -181,15 +177,17 @@ void *getInfo(void *ptr) {
 			printf("Receiving error\n");
 			exit(-1);
 		}
-		printf("%s\n", buffer);
+		sscanf(buffer, "%s %s %lf %d %d %d %d %d %d %d %lf", d.event, d.id, &d.time, &d.b1, &d.b2, &d.s1, &d.s2, &d.r, &d.y, &d.g, &d.volt);
 		fflush(stdout);
-		sql = sqlite3_mprintf("INSERT INTO Log VALUES ('%q');", buffer);	
+		sql = sqlite3_mprintf("INSERT INTO Log VALUES ('%q', '%q', %lf, %d, %d, %d, %d, %d, %d, %d, %lf);", d.event, d.id, d.time, d.b1, d.b2, d.s1, d.s2, d.r, d.y, d.g, d.volt);	
 		rc = sqlite3_exec(db, sql, 0, 0, &err_msg);
    
    		if( rc != SQLITE_OK ){
       			fprintf(stderr, "SQL error: %s\n", err_msg);
       			sqlite3_free(err_msg);
-   		}	
+   		}
+		bzero(d.event, 16);
+		bzero(d.id, 16);
 	}
 	pthread_exit(0);
 }
@@ -211,6 +209,7 @@ void *menu(void *ptr) {
 		scanf("%d", &choice);
 		switch(choice) {
 			case 0:
+				exit(0);
 				break;
 			case 1:
 				sql = "SELECT * FROM Log";
@@ -233,19 +232,20 @@ void *menu(void *ptr) {
 				printf("4. Back\n");
 				scanf("%d", &LED);
 				if(LED == 1) {
-					n = sendto(sock, "RED", 3, 0, (struct sockaddr *)&addr, fromlen);
+					n = sendto(sock, "R", 3, 0, (struct sockaddr *)&addr, fromlen);
 			 		if (n < 0){
+						perror("Error: ");
 						printf("Send error\n");
 						exit(0);
 					}			
 				} else if(LED == 2) {
-					n = sendto(sock, "YELLOW", 6, 0, (struct sockaddr *)&addr, fromlen);
+					n = sendto(sock, "Y", 6, 0, (struct sockaddr *)&addr, fromlen);
 					if (n < 0){
 						printf("Send error\n");
 						exit(0);
 					}			
 				} else if(LED == 3) {
-					n = sendto(sock, "GREEN", 5, 0, (struct sockaddr *)&addr, fromlen);
+					n = sendto(sock, "G", 5, 0, (struct sockaddr *)&addr, fromlen);
 					if (n < 0){
 						printf("Send error\n");
 						exit(0);
