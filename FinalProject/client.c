@@ -79,12 +79,16 @@ int main(int argc, char *argv[]) {
 	wiringPiSetup();
 	pinMode(dec7E, OUTPUT);
 	pinMode(dec7A, OUTPUT);
-	pinMode(dec7B, OUTPUT);
+	pinMode(dec7B, OUTPUT);		//dec 7 segment
 	pinMode(dec7C, OUTPUT);
 	pinMode(dec7D, OUTPUT);
 	
 	digitalWrite(dec7E, HIGH);
-	
+	digitalWrite(dec7A, LOW);
+	digitalWrite(dec7B, LOW);		//set initial display to "0"
+	digitalWrite(dec7C, LOW);
+	digitalWrite(dec7D, LOW);
+
 	port = argv[1];
 	portfield = argv[2];
 /*
@@ -118,10 +122,10 @@ int main(int argc, char *argv[]) {
 	}
 
 	pthread_t t1, t2, t3, t4;
-	pthread_create(&t1, NULL, rt_Event, NULL);
+	pthread_create(&t1, NULL, rt_Event, NULL);		//button press and switches
 	pthread_create(&t2, NULL, sendEvents, NULL);		//threads to run "RTU"
-	pthread_create(&t3, NULL, receiveEvents, NULL);
-	pthread_create(&t4, NULL, ADC, NULL);
+	pthread_create(&t3, NULL, receiveEvents, NULL);		//LED events
+	pthread_create(&t4, NULL, ADC, NULL);			//ADC events
 	pthread_join(t1, 0);
 	pthread_join(t2, 0);
 	pthread_join(t3, 0);
@@ -141,14 +145,14 @@ void *rt_Event(void *ptr) {
 		if(buffer[0] != '\0') {
 			if(strcmp(buffer, "S1") == 0) {
 				digitalWrite(dec7A, HIGH);
-				digitalWrite(dec7B, HIGH);
+				digitalWrite(dec7B, HIGH);	//switch 1 displays 3 on segment display
 				digitalWrite(dec7C, LOW);
 				digitalWrite(dec7D, LOW);
 
 				format("SW1");
 			} else if(strcmp(buffer, "S2") == 0) {
 				digitalWrite(dec7A, LOW);
-				digitalWrite(dec7B, LOW);
+				digitalWrite(dec7B, LOW);		//displayer 4 on segment display
 				digitalWrite(dec7C, HIGH);
 				digitalWrite(dec7D, LOW);
 
@@ -156,13 +160,13 @@ void *rt_Event(void *ptr) {
 			} else if(strcmp(buffer, "B1") == 0) {
 				digitalWrite(dec7A, HIGH);
 				digitalWrite(dec7B, LOW);
-				digitalWrite(dec7C, LOW);
+				digitalWrite(dec7C, LOW);		//button 1 push event displays a 1
 				digitalWrite(dec7D, LOW);
 
 				format("BT1");
 			} else if(strcmp(buffer, "B2") == 0) {
 				digitalWrite(dec7A, LOW);
-				digitalWrite(dec7B, HIGH);
+				digitalWrite(dec7B, HIGH);		//button 2 push event displays a 2
 				digitalWrite(dec7C, LOW);
 				digitalWrite(dec7D, LOW);
 
@@ -241,14 +245,16 @@ char *getIP() {
 
 void format(char *event) {
 	gettimeofday(&eT);
-	eTime = eT.tv_sec * (uint64_t)1000000 + (eT.tv_usec);
+	eTime = eT.tv_sec * (uint64_t)1000000 + (eT.tv_usec); //total time
 	sprintf(list[lNum++], "%s %s %f %d %d %d %d %d %d %d %f", event, getIP(), eTime, digitalRead(BUTTON1),
 	digitalRead(BUTTON2),digitalRead(SW1),digitalRead(SW2),digitalRead(RED),digitalRead(YELLOW),digitalRead(GREEN), now);
 	fflush(stdout);		
 }
+
+
 void error(const char *msg)
 {
-    perror(msg);
+    perror(msg);		//error printing
     exit(0);
 }
 /*
@@ -269,7 +275,7 @@ void *receiveEvents(void *ptr) {
 		}	
 		if(strcmp(msg1, "R") == 0) {
 			digitalWrite(dec7A, HIGH);
-			digitalWrite(dec7B, LOW);
+			digitalWrite(dec7B, LOW);		//whenever RED event detected, 5 shows
 			digitalWrite(dec7C, HIGH);
 			digitalWrite(dec7D, LOW);
 
@@ -282,7 +288,7 @@ void *receiveEvents(void *ptr) {
 		} else if(strcmp(msg1, "Y") == 0) {
 			digitalWrite(dec7A, LOW);
 			digitalWrite(dec7B, HIGH);
-			digitalWrite(dec7C, HIGH);
+			digitalWrite(dec7C, HIGH);		//yellow event shows a 6
 			digitalWrite(dec7D, LOW);
 
 			if(digitalRead(YELLOW) == 0) {
@@ -293,7 +299,7 @@ void *receiveEvents(void *ptr) {
 			format("YELLOW");
 		} else if(strcmp(msg1, "G") == 0) {
 			digitalWrite(dec7A, HIGH);
-			digitalWrite(dec7B, HIGH);
+			digitalWrite(dec7B, HIGH);		//green event shows a 7
 			digitalWrite(dec7C, HIGH);
 			digitalWrite(dec7D, LOW);
 
@@ -324,9 +330,9 @@ void *ADC(void *ptr){
 
 	while(1){
 		ADCvalue = get_ADC(ADC_CHANNEL);
-		voltage = (double) ((ADCvalue * 3.3 ) / 1023);
+		voltage = (double) ((ADCvalue * 3.3 ) / 1023); //convert digital to actual voltage
 		check(voltage);
-		usleep(500);
+		usleep(500);	//sample every 500 microseconds or 2000 times per second
 	}
 	pthread_exit(0);
 
@@ -335,18 +341,18 @@ void *ADC(void *ptr){
 
 
 void check(float ADC){
-	if(ADC > 3.18 || ADC < 1.70){
-		if(out == 1){
+	if(ADC > 3.18 || ADC < 1.70){ //if outside bounds
+		if(out == 1){	//whenever first breaking the bounds
 			digitalWrite(dec7A, LOW);
-			digitalWrite(dec7B, LOW);
+			digitalWrite(dec7B, LOW);		//add ADC events represented by 8 on segment display
 			digitalWrite(dec7C, LOW);
 			digitalWrite(dec7D, HIGH);
 
 			past = ADC;
 			now = ADC;
-			checkZero[j] = ADC;
+			checkZero[j] = ADC;	//check for no power
 			if(checkZero[0] == ADC && checkZero[1] == ADC && checkZero[2] == ADC && checkZero[3] == ADC && checkZero[4] == ADC){
-				zero = 1;
+				zero = 1; //if 5 reads in a row are the same, assume "no power"
 			}
 			if(j == 9){
 				j = 0;
@@ -360,8 +366,8 @@ void check(float ADC){
 			digitalWrite(dec7C, LOW);
 			digitalWrite(dec7D, HIGH);
 
-			now  = ADC;
-			format("ADC-Out");
+			now = ADC;
+			format("ADC-Out"); //event is logged for going out of bounds
 			out = 1;
 
 		}
@@ -374,7 +380,7 @@ void check(float ADC){
 				digitalWrite(dec7D, HIGH);
 
 				now = 0;
-				format("ADC-Zero");
+				format("ADC-Zero");	//event is logged whenever it is no power
 				zero = 0;
 			}
 			digitalWrite(dec7A, LOW);
@@ -383,10 +389,10 @@ void check(float ADC){
 			digitalWrite(dec7D, HIGH);
 
 			now = ADC;
-			format("ADC-Back");
+			format("ADC-Back");	//event is logged whenver voltage starts to go back into bounds
 			out = 0;
 		}
-		checkZero[j] = ADC;
+		checkZero[j] = ADC;	//for checking to see if no power occurs
 	}
 }
 

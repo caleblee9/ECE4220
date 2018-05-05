@@ -15,19 +15,19 @@
 char *getIP();
 void *getInfo(void *);
 void *menu(void *);
-int callback(void *, int, char **, char **);
+int callback(void *, int, char **, char **); //used to display the database results
 
 
 sqlite3 *db;
 char *err_msg = 0;
-int rc;  
+int rc;  //for sql database to check for errors
 const char *sql; 
 char buffer[70]; //receive buffer
 int sock; 
 struct sockaddr_in server;
 struct sockaddr_in addr;
 socklen_t fromlen;
-typedef struct data {
+typedef struct data {		//structure to store events that are received in order to store in SQL Database
 	char event[16];
 	char id[16];
 	double time;
@@ -53,16 +53,16 @@ int main(int argc, char *argv[]) {
 ------------------------------SQL DATABASE SETUP------------------------------------
 ------------------------------------------------------------------------------------
 */
-    	rc = sqlite3_open("test.db", &db);
+    	rc = sqlite3_open("test.db", &db); //open database
     
-    	if (rc != SQLITE_OK) {
+    	if (rc != SQLITE_OK) {	//make sure database exists
         
         	fprintf(stderr, "Cannot open database: %s\n", sqlite3_errmsg(db));
         	return 1;
     	}
     
     	sql = "DROP TABLE IF EXISTS Log;" 
-                "CREATE TABLE Log(Event TEXT, ID TEXT, TIME REAL, Button1 INT, Button2 INT, Switch1 INT, Switch2 INT, RED INT, YELLOW INT, GREEN INT, VOLTAGE REAL);";
+                "CREATE TABLE Log(Event TEXT, ID TEXT, TIME REAL, Button1 INT, Button2 INT, Switch1 INT, Switch2 INT, RED INT, YELLOW INT, GREEN INT, VOLTAGE REAL);"; //create table for log of events
 
     	rc = sqlite3_exec(db, sql, 0, 0, &err_msg);
     
@@ -177,9 +177,9 @@ void *getInfo(void *ptr) {
 			printf("Receiving error\n");
 			exit(-1);
 		}
-		sscanf(buffer, "%s %s %lf %d %d %d %d %d %d %d %lf", d.event, d.id, &d.time, &d.b1, &d.b2, &d.s1, &d.s2, &d.r, &d.y, &d.g, &d.volt);
+		sscanf(buffer, "%s %s %lf %d %d %d %d %d %d %d %lf", d.event, d.id, &d.time, &d.b1, &d.b2, &d.s1, &d.s2, &d.r, &d.y, &d.g, &d.volt); //read in the buffer and store values in a structure to be read to database
 		fflush(stdout);
-		sql = sqlite3_mprintf("INSERT INTO Log VALUES ('%q', '%q', %lf, %d, %d, %d, %d, %d, %d, %d, %.2lf);", d.event, d.id, d.time, d.b1, d.b2, d.s1, d.s2, d.r, d.y, d.g, (double) d.volt);	
+		sql = sqlite3_mprintf("INSERT INTO Log VALUES ('%q', '%q', %lf, %d, %d, %d, %d, %d, %d, %d, %.2lf);", d.event, d.id, d.time, d.b1, d.b2, d.s1, d.s2, d.r, d.y, d.g, (double) d.volt);//cant use sprintf so use sqlite3_mprintf to create string
 		rc = sqlite3_exec(db, sql, 0, 0, &err_msg);
    
    		if( rc != SQLITE_OK ){
@@ -204,14 +204,14 @@ void *menu(void *ptr) {
 	while(1) {
 		printf("What would you like to do?\n");
 		printf("1. Display Log\n");
-		printf("2. Enable/Disable LEDs\n");
+		printf("2. Enable/Disable LEDs\n");	//menu
 		printf("0. Exit\n");
 		scanf("%d", &choice);
 		switch(choice) {
 			case 0:
-				exit(0);
+				exit(0); //user wants to exit
 				break;
-			case 1:
+			case 1: //user wants to display the log
 				sql = "SELECT * FROM Log ORDER BY TIME";
         
     				rc = sqlite3_exec(db, sql, callback, 0, &err_msg);
@@ -228,7 +228,7 @@ void *menu(void *ptr) {
 				addr.sin_addr.s_addr = inet_addr("128.206.19.255"); 	//set IP to broadcast (.255)
 				printf("1. RED\n");
 				printf("2. Yellow\n");
-				printf("3. GREEN\n");
+				printf("3. GREEN\n"); //which LED to toggle
 				printf("4. Back\n");
 				scanf("%d", &LED);
 				switch(LED) {
@@ -241,7 +241,7 @@ void *menu(void *ptr) {
 						}
 						break;			
 					case 2:
-						n = sendto(sock, "Y", 6, 0, (struct sockaddr *)&addr, fromlen);
+						n = sendto(sock, "Y", 6, 0, (struct sockaddr *)&addr, fromlen); //send to client which LED to toggle
 						if (n < 0){
 							printf("Send error\n");
 							exit(0);
@@ -262,7 +262,7 @@ void *menu(void *ptr) {
 				}
 				break;
 			default:
-				printf("Invalid entry\n");
+				printf("Invalid entry\n"); //make sure user doesn't enter incorrect value
 				continue;
 			
 
