@@ -22,7 +22,7 @@ sqlite3 *db;
 char *err_msg = 0;
 int rc;  
 const char *sql; 
-char buffer[50]; //receive buffer
+char buffer[70]; //receive buffer
 int sock; 
 struct sockaddr_in server;
 struct sockaddr_in addr;
@@ -167,8 +167,8 @@ void *getInfo(void *ptr) {
 	int n;
 	Data d;	
 	while(1) {
-		bzero(buffer, 50); //refresh buffer
-		n = recvfrom(sock, buffer, 50, 0, (struct sockaddr *)&addr, &fromlen); //receive messages from clients
+		bzero(buffer, 70); //refresh buffer
+		n = recvfrom(sock, buffer, 70, 0, (struct sockaddr *)&addr, &fromlen); //receive messages from clients
 		if( strcmp(buffer, "RED") == 0 || strcmp(buffer, "YELLOW") == 0 || strcmp(buffer, "GREEN") == 0) 
 		{
 			continue;
@@ -179,7 +179,7 @@ void *getInfo(void *ptr) {
 		}
 		sscanf(buffer, "%s %s %lf %d %d %d %d %d %d %d %lf", d.event, d.id, &d.time, &d.b1, &d.b2, &d.s1, &d.s2, &d.r, &d.y, &d.g, &d.volt);
 		fflush(stdout);
-		sql = sqlite3_mprintf("INSERT INTO Log VALUES ('%q', '%q', %lf, %d, %d, %d, %d, %d, %d, %d, %lf);", d.event, d.id, d.time, d.b1, d.b2, d.s1, d.s2, d.r, d.y, d.g, d.volt);	
+		sql = sqlite3_mprintf("INSERT INTO Log VALUES ('%q', '%q', %lf, %d, %d, %d, %d, %d, %d, %d, %.2lf);", d.event, d.id, d.time, d.b1, d.b2, d.s1, d.s2, d.r, d.y, d.g, (double) d.volt);	
 		rc = sqlite3_exec(db, sql, 0, 0, &err_msg);
    
    		if( rc != SQLITE_OK ){
@@ -212,7 +212,7 @@ void *menu(void *ptr) {
 				exit(0);
 				break;
 			case 1:
-				sql = "SELECT * FROM Log";
+				sql = "SELECT * FROM Log ORDER BY TIME";
         
     				rc = sqlite3_exec(db, sql, callback, 0, &err_msg);
     
@@ -231,33 +231,42 @@ void *menu(void *ptr) {
 				printf("3. GREEN\n");
 				printf("4. Back\n");
 				scanf("%d", &LED);
-				if(LED == 1) {
-					n = sendto(sock, "R", 3, 0, (struct sockaddr *)&addr, fromlen);
-			 		if (n < 0){
-						perror("Error: ");
-						printf("Send error\n");
-						exit(0);
-					}			
-				} else if(LED == 2) {
-					n = sendto(sock, "Y", 6, 0, (struct sockaddr *)&addr, fromlen);
-					if (n < 0){
-						printf("Send error\n");
-						exit(0);
-					}			
-				} else if(LED == 3) {
-					n = sendto(sock, "G", 5, 0, (struct sockaddr *)&addr, fromlen);
-					if (n < 0){
-						printf("Send error\n");
-						exit(0);
-					}			
-				} else if(LED == 4) {
-					continue;
+				switch(LED) {
+					case 1:
+						n = sendto(sock, "R", 3, 0, (struct sockaddr *)&addr, fromlen);
+			 			if (n < 0){
+							perror("Error: ");
+							printf("Send error\n");
+							exit(0);
+						}
+						break;			
+					case 2:
+						n = sendto(sock, "Y", 6, 0, (struct sockaddr *)&addr, fromlen);
+						if (n < 0){
+							printf("Send error\n");
+							exit(0);
+						}
+						break;			
+					case 3:
+
+						n = sendto(sock, "G", 5, 0, (struct sockaddr *)&addr, fromlen);
+						if (n < 0){
+							printf("Send error\n");
+							exit(0);
+						}			
+					case 4:
+						continue;
+					default:
+						printf("Invalid entry\n");
+						continue;
 				}
 				break;
+			default:
+				printf("Invalid entry\n");
+				continue;
 			
-		}
-		
 
+		}
 	}
 	system("clear");
 	exit(0);
