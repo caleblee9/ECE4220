@@ -21,20 +21,24 @@
 #define SW2 23
 #define RED 8		//RED LED wiringPi
 #define YELLOW 9	//YELLOW LED wiringPi
-#define GREEN 7		//GREEN LED wiringPi	
+#define GREEN 7		//GREEN LED wiringPi
+#define dec7E 29
+#define dec7A 5
+#define dec7B 6
+#define dec7C 25
+#define dec7D 2
 
 int lNum = 0; //holds place for list
 struct timeval eT;	//event time
-struct timeval noT;	//status time
 static char buffer[40];	//character device buffer
-char list[16][64] = {"\0\0"};//holds events that occured within interval
+char list[32][70] = {"\0"};//holds events that occured within interval
 int sock;
 unsigned int length;
 struct sockaddr_in server, from;  //for server user
 struct hostent *hp;
 char *port;
 char *portfield;
-
+double eTime;
 //ADC
 
 
@@ -47,13 +51,13 @@ uint16_t get_ADC(int channel);	// prototype
 
 float b4[5];
 float checkZero[10];
-int out;
-int zero;
-double past;
-double now = 0;
+int zero = 0;
+int out = 0;
+float past = 0.0;
+float now = 0.0;
 int j = 0;
 
-void check(double);
+void check(float);
 void *ADC(void *);
 //ADC
 
@@ -72,6 +76,15 @@ int main(int argc, char *argv[]) {
 	   	printf("usage %s hostname port\n", argv[0]); //make sure user enters correct commandline arguements
        		exit(1);
   	}
+	wiringPiSetup();
+	pinMode(dec7E, OUTPUT);
+	pinMode(dec7A, OUTPUT);
+	pinMode(dec7B, OUTPUT);
+	pinMode(dec7C, OUTPUT);
+	pinMode(dec7D, OUTPUT);
+	
+	digitalWrite(dec7E, HIGH);
+	
 	port = argv[1];
 	portfield = argv[2];
 /*
@@ -127,12 +140,32 @@ void *rt_Event(void *ptr) {
 		read(cdev_id, buffer, sizeof(buffer));	//read in character device if button or switch is activated
 		if(buffer[0] != '\0') {
 			if(strcmp(buffer, "S1") == 0) {
+				digitalWrite(dec7A, HIGH);
+				digitalWrite(dec7B, HIGH);
+				digitalWrite(dec7C, LOW);
+				digitalWrite(dec7D, LOW);
+
 				format("SW1");
 			} else if(strcmp(buffer, "S2") == 0) {
+				digitalWrite(dec7A, LOW);
+				digitalWrite(dec7B, LOW);
+				digitalWrite(dec7C, HIGH);
+				digitalWrite(dec7D, LOW);
+
 				format("SW2");
 			} else if(strcmp(buffer, "B1") == 0) {
+				digitalWrite(dec7A, HIGH);
+				digitalWrite(dec7B, LOW);
+				digitalWrite(dec7C, LOW);
+				digitalWrite(dec7D, LOW);
+
 				format("BT1");
 			} else if(strcmp(buffer, "B2") == 0) {
+				digitalWrite(dec7A, LOW);
+				digitalWrite(dec7B, HIGH);
+				digitalWrite(dec7C, LOW);
+				digitalWrite(dec7D, LOW);
+
 				format("BT2");
 			} 
 		}
@@ -147,7 +180,7 @@ void *rt_Event(void *ptr) {
 
 void *sendEvents(void *ptr) {
 	int n;
-	char msg[64];
+	char msg[70];
 
    	int i;
 	uint64_t num_periods = 0;
@@ -162,13 +195,13 @@ void *sendEvents(void *ptr) {
 	while(1){
 		read(timer_fd, &num_periods, sizeof(num_periods));
 		i = 0;
-		while(strcmp(list[i], "\0\0") != 0) { //if the list of events actually has an event
-			bzero(msg, 64); //refresh buffer
+			while(strcmp(list[i], "\0") != 0) { //if the list of events actually has an event
+			bzero(msg, 70); //refresh buffer
 			strcpy(msg, list[i]);	//get the event
-			n = sendto(sock, msg, 64, 0, (const struct sockaddr *)&server,length);//send event information to historian
+			n = sendto(sock, msg, 70, 0, (const struct sockaddr *)&server,length);//send event information to historian
    			if (n < 0)
 	   			error("Sendto");
-			bzero(list[i], 64); //see if there are more events
+			bzero(list[i], 70); //see if there are more events
 			i++;
 		}
 		lNum = 0;
@@ -208,9 +241,8 @@ char *getIP() {
 
 void format(char *event) {
 	gettimeofday(&eT);
-	printf("%lf\n", now);
-	double eTime = eT.tv_sec + (eT.tv_usec / 1000000);
-	sprintf(list[lNum++], "%s %s %f %d %d %d %d %d %d %d %lf", event, getIP(), eTime, digitalRead(BUTTON1),
+	eTime = eT.tv_sec * (uint64_t)1000000 + (eT.tv_usec);
+	sprintf(list[lNum++], "%s %s %f %d %d %d %d %d %d %d %f", event, getIP(), eTime, digitalRead(BUTTON1),
 	digitalRead(BUTTON2),digitalRead(SW1),digitalRead(SW2),digitalRead(RED),digitalRead(YELLOW),digitalRead(GREEN), now);
 	fflush(stdout);		
 }
@@ -236,6 +268,11 @@ void *receiveEvents(void *ptr) {
 			exit(0);
 		}	
 		if(strcmp(msg1, "R") == 0) {
+			digitalWrite(dec7A, HIGH);
+			digitalWrite(dec7B, LOW);
+			digitalWrite(dec7C, HIGH);
+			digitalWrite(dec7D, LOW);
+
 			if(digitalRead(RED) == 0) {
 				digitalWrite(RED, HIGH);
 			} else {
@@ -243,6 +280,11 @@ void *receiveEvents(void *ptr) {
 			}
 			format("RED");
 		} else if(strcmp(msg1, "Y") == 0) {
+			digitalWrite(dec7A, LOW);
+			digitalWrite(dec7B, HIGH);
+			digitalWrite(dec7C, HIGH);
+			digitalWrite(dec7D, LOW);
+
 			if(digitalRead(YELLOW) == 0) {
 				digitalWrite(YELLOW, HIGH);
 			} else {
@@ -250,6 +292,11 @@ void *receiveEvents(void *ptr) {
 			}
 			format("YELLOW");
 		} else if(strcmp(msg1, "G") == 0) {
+			digitalWrite(dec7A, HIGH);
+			digitalWrite(dec7B, HIGH);
+			digitalWrite(dec7C, HIGH);
+			digitalWrite(dec7D, LOW);
+
 			if(digitalRead(GREEN) == 0) {
 				digitalWrite(GREEN, HIGH);
 			} else {
@@ -277,7 +324,7 @@ void *ADC(void *ptr){
 
 	while(1){
 		ADCvalue = get_ADC(ADC_CHANNEL);
-		voltage = (double) ((ADCvalue *3.3 ) / 1023);
+		voltage = (double) ((ADCvalue * 3.3 ) / 1023);
 		check(voltage);
 		usleep(500);
 	}
@@ -287,16 +334,20 @@ void *ADC(void *ptr){
 
 
 
-void check(double ADC){
+void check(float ADC){
 	if(ADC > 3.18 || ADC < 1.70){
 		if(out == 1){
+			digitalWrite(dec7A, LOW);
+			digitalWrite(dec7B, LOW);
+			digitalWrite(dec7C, LOW);
+			digitalWrite(dec7D, HIGH);
+
 			past = ADC;
 			now = ADC;
 			checkZero[j] = ADC;
 			if(checkZero[0] == ADC && checkZero[1] == ADC && checkZero[2] == ADC && checkZero[3] == ADC && checkZero[4] == ADC){
 				zero = 1;
 			}
-
 			if(j == 9){
 				j = 0;
 			} else {
@@ -304,26 +355,38 @@ void check(double ADC){
 			}
 
 		} else if(out == 0){
+			digitalWrite(dec7A, LOW);
+			digitalWrite(dec7B, LOW);
+			digitalWrite(dec7C, LOW);
+			digitalWrite(dec7D, HIGH);
+
 			now  = ADC;
 			format("ADC-Out");
 			out = 1;
 
 		}
-	} else{
+	} else {
 	 	if(out == 1){
-			if(zero == 1){
+			if(zero == 1) {
+				digitalWrite(dec7A, LOW);
+				digitalWrite(dec7B, LOW);
+				digitalWrite(dec7C, LOW);
+				digitalWrite(dec7D, HIGH);
+
+				now = 0;
 				format("ADC-Zero");
 				zero = 0;
 			}
+			digitalWrite(dec7A, LOW);
+			digitalWrite(dec7B, LOW);
+			digitalWrite(dec7C, LOW);
+			digitalWrite(dec7D, HIGH);
+
 			now = ADC;
 			format("ADC-Back");
 			out = 0;
 		}
 		checkZero[j] = ADC;
-		if(checkZero[j] == 0){
-			printf("NO power");
-		}
-
 	}
 }
 
