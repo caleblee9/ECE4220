@@ -22,12 +22,24 @@ sqlite3 *db;
 char *err_msg = 0;
 int rc;  
 const char *sql; 
-char buffer[40]; //message with size of 40
-typedef struct serverInfo {
-	int socket;
-	struct sockaddr_in address;
-	socklen_t len;
-}ServerInfo;
+char buffer[50]; //receive buffer
+int sock; 
+struct sockaddr_in server;
+struct sockaddr_in addr;
+socklen_t fromlen;
+typedef struct data {
+	char event[16];
+	char id[16];
+	double time;
+	int b1;
+	int b2;
+	int s1;
+	int s2;
+	int r;
+	int y;
+	int g;
+	double volt;
+} Data;
 
 int main(int argc, char *argv[]) {
 	if(argc < 2) {
@@ -49,9 +61,8 @@ int main(int argc, char *argv[]) {
         	return 1;
     	}
     
-    	sql = "DROP TABLE IF EXISTS Log;" \
-                "CREATE TABLE Log(" \
-		"Event TEXT);";
+    	sql = "DROP TABLE IF EXISTS Log;" 
+                "CREATE TABLE Log(Event TEXT, ID TEXT, TIME REAL, Button1 INT, Button2 INT, Switch1 INT, Switch2 INT, RED INT, YELLOW INT, GREEN INT, VOLTAGE REAL);";
 
     	rc = sqlite3_exec(db, sql, 0, 0, &err_msg);
     
@@ -65,18 +76,13 @@ int main(int argc, char *argv[]) {
 --------------------------------------------------------------------------------
 */   
     
-	int n;
-	struct in_addr ip;
-	socklen_t fromlen;
 
 
-	int sock = socket(AF_INET, SOCK_DGRAM, 0); //create the socket
+	sock = socket(AF_INET, SOCK_DGRAM, 0); //create the socket
 	if(sock < 0) {
 		printf("Error opening socket\n");
 		exit(-1);
 	}
-	struct sockaddr_in server;
-	struct sockaddr_in addr;
 	bzero(&server, sizeof(server)); //sets all values of server to 0
 	server.sin_family = AF_INET; //Internet domain
 	server.sin_addr.s_addr = INADDR_ANY;	//IP address on running machine
@@ -89,11 +95,10 @@ int main(int argc, char *argv[]) {
 	}
 	
 	int broadEnable = 1;
-	int ret = setsockopt(sock, SOL_SOCKET, SO_BROADCAST, &broadEnable, sizeof(broadEnable)); //set socket to allow broadcast
-	if(ret < 0 ) {
-		printf("Error setting socket to broadcast\n");
+	if(setsockopt(sock, SOL_SOCKET, SO_BROADCAST, &broadEnable, sizeof(broadEnable)) < 0) {
+		printf("error setting socket options\n");
 		exit(-1);
-	}
+	} //set socket to allow broadcast
 	fromlen = sizeof(struct sockaddr_in); //size of socket structure
 
 /*
@@ -103,11 +108,7 @@ int main(int argc, char *argv[]) {
 */
 	
 	pthread_t t1, t2;
-	ServerInfo s1;
-	s1.socket = sock;
-	s1.address = addr;
-	s1.len = fromlen;
-	pthread_create(&t1, NULL, getInfo, &s1);
+	pthread_create(&t1, NULL, getInfo, NULL);
 	pthread_create(&t2, NULL, menu, NULL);	
 	pthread_join(t1, NULL);	
 	pthread_join(t2, NULL);
@@ -116,6 +117,11 @@ int main(int argc, char *argv[]) {
 	
 	return 0;
 }
+/*
+-----------------------------------------------------------------------------
+--------------------------------GET IP---------------------------------------
+-----------------------------------------------------------------------------
+*/
 char *getIP() {	
 	int n;
     	struct ifreq ifr;
@@ -131,7 +137,14 @@ char *getIP() {
     return inet_ntoa(( (struct sockaddr_in *)&ifr.ifr_addr )->sin_addr);
 
 }
-int callback(void *NotUsed, int argc, char **argv, char **azColName) {
+/*
+-----------------------------------------------------------------------------
+--------------------------------CALLBACK-------------------------------------
+-----------------------------------------------------------------------------
+*/
+
+int callback(void *NotUsed, int argc, char **argv, 
+                    char **azColName) {
     
     NotUsed = 0;
     
@@ -144,41 +157,59 @@ int callback(void *NotUsed, int argc, char **argv, char **azColName) {
     
     return 0;
 }
+/*
+-----------------------------------------------------------------------------
+--------------------------------GETINFO--------------------------------------
+-----------------------------------------------------------------------------
+*/
+
 void *getInfo(void *ptr) {
-	ServerInfo *s1 = (ServerInfo *) ptr;
 	int n;
-	
+	Data d;	
 	while(1) {
-		bzero(buffer, 40); //refresh buffer
-		n = recvfrom(s1->socket, buffer, 40, 0, (struct sockaddr *)&s1->address, &s1->len); //receive messages from clients
+		bzero(buffer, 50); //refresh buffer
+		n = recvfrom(sock, buffer, 50, 0, (struct sockaddr *)&addr, &fromlen); //receive messages from clients
+		if( strcmp(buffer, "RED") == 0 || strcmp(buffer, "YELLOW") == 0 || strcmp(buffer, "GREEN") == 0) 
+		{
+			continue;
+		}
 		if (n < 0) {
 			printf("Receiving error\n");
 			exit(-1);
 		}
-		printf("%s\n", buffer);
-
-		sql = sqlite3_mprintf("INSERT INTO Log VALUES ('%q');", buffer);	
+		sscanf(buffer, "%s %s %lf %d %d %d %d %d %d %d %lf", d.event, d.id, &d.time, &d.b1, &d.b2, &d.s1, &d.s2, &d.r, &d.y, &d.g, &d.volt);
+		fflush(stdout);
+		sql = sqlite3_mprintf("INSERT INTO Log VALUES ('%q', '%q', %lf, %d, %d, %d, %d, %d, %d, %d, %lf);", d.event, d.id, d.time, d.b1, d.b2, d.s1, d.s2, d.r, d.y, d.g, d.volt);	
 		rc = sqlite3_exec(db, sql, 0, 0, &err_msg);
    
    		if( rc != SQLITE_OK ){
       			fprintf(stderr, "SQL error: %s\n", err_msg);
       			sqlite3_free(err_msg);
-   		}	
+   		}
+		bzero(d.event, 16);
+		bzero(d.id, 16);
 	}
 	pthread_exit(0);
 }
+/*
+-----------------------------------------------------------------------------
+--------------------------------USER MENU------------------------------------
+-----------------------------------------------------------------------------
+*/
+
 void *menu(void *ptr) {
 	int choice = 0;
-	int LED;
+	int LED = 0;
 	int n;
 	while(1) {
 		printf("What would you like to do?\n");
 		printf("1. Display Log\n");
-		printf("2. Enable/Disable LEDs");
+		printf("2. Enable/Disable LEDs\n");
 		printf("0. Exit\n");
 		scanf("%d", &choice);
 		switch(choice) {
 			case 0:
+				exit(0);
 				break;
 			case 1:
 				sql = "SELECT * FROM Log";
@@ -193,14 +224,39 @@ void *menu(void *ptr) {
         				sqlite3_free(err_msg);
     				}
 				break;
-			case 2:
+			case 2:	
+				addr.sin_addr.s_addr = inet_addr("128.206.19.255"); 	//set IP to broadcast (.255)
 				printf("1. RED\n");
-				printf("2. YELLOW\n");
+				printf("2. Yellow\n");
 				printf("3. GREEN\n");
-				printf("4. BACK\n");
-				
-
+				printf("4. Back\n");
+				scanf("%d", &LED);
+				if(LED == 1) {
+					n = sendto(sock, "R", 3, 0, (struct sockaddr *)&addr, fromlen);
+			 		if (n < 0){
+						perror("Error: ");
+						printf("Send error\n");
+						exit(0);
+					}			
+				} else if(LED == 2) {
+					n = sendto(sock, "Y", 6, 0, (struct sockaddr *)&addr, fromlen);
+					if (n < 0){
+						printf("Send error\n");
+						exit(0);
+					}			
+				} else if(LED == 3) {
+					n = sendto(sock, "G", 5, 0, (struct sockaddr *)&addr, fromlen);
+					if (n < 0){
+						printf("Send error\n");
+						exit(0);
+					}			
+				} else if(LED == 4) {
+					continue;
+				}
+				break;
+			
 		}
+		
 
 	}
 	system("clear");
