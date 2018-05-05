@@ -131,8 +131,7 @@ char *getIP() {
     return inet_ntoa(( (struct sockaddr_in *)&ifr.ifr_addr )->sin_addr);
 
 }
-int callback(void *NotUsed, int argc, char **argv, 
-                    char **azColName) {
+int callback(void *NotUsed, int argc, char **argv, char **azColName) {
     
     NotUsed = 0;
     
@@ -170,26 +169,37 @@ void *getInfo(void *ptr) {
 }
 void *menu(void *ptr) {
 	int choice = 0;
+	int LED;
+	int n;
 	while(1) {
 		printf("What would you like to do?\n");
 		printf("1. Display Log\n");
 		printf("2. Enable/Disable LEDs");
 		printf("0. Exit\n");
 		scanf("%d", &choice);
-		if(choice == 0) {
-			break;
-		}else if (choice == 1) {
-			sql = "SELECT * FROM Log";
+		switch(choice) {
+			case 0:
+				break;
+			case 1:
+				sql = "SELECT * FROM Log";
         
-    			rc = sqlite3_exec(db, sql, callback, 0, &err_msg);
+    				rc = sqlite3_exec(db, sql, callback, 0, &err_msg);
     
-    			if (rc != SQLITE_OK ) {
+    				if (rc != SQLITE_OK ) {
         
-        			fprintf(stderr, "Failed to select data\n");
-        			fprintf(stderr, "SQL error: %s\n", err_msg);
+        				fprintf(stderr, "Failed to select data\n");
+        				fprintf(stderr, "SQL error: %s\n", err_msg);
 
-        			sqlite3_free(err_msg);
-    			}
+        				sqlite3_free(err_msg);
+    				}
+				break;
+			case 2:
+				printf("1. RED\n");
+				printf("2. YELLOW\n");
+				printf("3. GREEN\n");
+				printf("4. BACK\n");
+				
+
 		}
 
 	}
