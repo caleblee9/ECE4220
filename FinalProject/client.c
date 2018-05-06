@@ -199,6 +199,14 @@ void *sendEvents(void *ptr) {
 	while(1){
 		read(timer_fd, &num_periods, sizeof(num_periods));
 		i = 0;
+		if(strcmp(list[0], "\0") == 0) {
+			digitalWrite(dec7A, LOW);
+			digitalWrite(dec7B, LOW);		//set display to "0"
+			digitalWrite(dec7C, LOW);
+			digitalWrite(dec7D, LOW);
+
+			format("NO_EVENT");
+		}
 			while(strcmp(list[i], "\0") != 0) { //if the list of events actually has an event
 			bzero(msg, 70); //refresh buffer
 			strcpy(msg, list[i]);	//get the event
