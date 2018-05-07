@@ -204,7 +204,7 @@ void *menu(void *ptr) {
 	while(1) {
 		printf("What would you like to do?\n");
 		printf("1. Display Log\n");
-		printf("2. Enable/Disable LEDs\n");	//menu
+		printf("2. Enable/Disable LEDs on random board\n");	//menu
 		printf("0. Exit\n");
 		scanf("%d", &choice);
 		switch(choice) {
