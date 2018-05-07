@@ -350,7 +350,7 @@ void *ADC(void *ptr){
 
 
 void check(float ADC){
-	if(ADC > 3.18 || ADC < 1.70){ //if outside bounds
+	if(ADC > 3.2 || ADC < 1.70){ //if outside bounds, this depends on the voltage in the arduino because it seems to fluctuate
 		if(out == 1){	//whenever first breaking the bounds
 			digitalWrite(dec7A, LOW);
 			digitalWrite(dec7B, LOW);		//add ADC events represented by 8 on segment display
