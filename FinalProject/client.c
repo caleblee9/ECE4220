@@ -91,6 +91,7 @@ int main(int argc, char *argv[]) {
 
 	port = argv[1];
 	portfield = argv[2];
+	int boolval = 1;
 /*
 --------------------------------------------------------------------------------
 -----------------------------------SERVER SETUP---------------------------------
@@ -99,14 +100,13 @@ int main(int argc, char *argv[]) {
 	sock = socket(AF_INET, SOCK_DGRAM, 0); // Creates socket. Connectionless.
    	if (sock < 0)
 	   	error("socket");
-
-   	server.sin_family = AF_INET;		// symbol constant for Internet domain
-   	hp = gethostbyname(port);		// converts hostname input
+	server.sin_family = AF_INET;		// symbol constant for Internet domain
+   	hp = gethostbyname(argv[1]);		// converts hostname input (e.g. 10.3.52.15)
    	if (hp == 0)
-		error("Unknown host");
+	   error("Unknown host");
 
-  	bcopy((char *)hp->h_addr, (char *)&server.sin_addr, hp->h_length);
-   	server.sin_port = htons(atoi(portfield));	// port field
+   	bcopy((char *)hp->h_addr, (char *)&server.sin_addr, hp->h_length);
+   	server.sin_port = htons(atoi(argv[2]));	// port field
    	length = sizeof(struct sockaddr_in);		// size of structure
 
 
@@ -277,6 +277,7 @@ void *receiveEvents(void *ptr) {
 	while(1) {
 		bzero(msg1, 40);
 		n = recvfrom(sock, msg1, 40, 0, (struct sockaddr *)&from, &length);
+		printf("%s\n", msg1);
 		if (n < 0) {
 			printf("Recieve error\n");
 			exit(0);
@@ -400,6 +401,7 @@ void check(float ADC){
 			format("ADC-Back");	//event is logged whenver voltage starts to go back into bounds
 			out = 0;
 		}
+		now = ADC;
 		checkZero[j] = ADC;	//for checking to see if no power occurs
 	}
 }
